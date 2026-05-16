@@ -1,0 +1,41 @@
+## Ignore Visual Studio & .NET build artifacts
+[Bb]in/
+[Oo]bj/
+*.user
+*.userosscache
+*.sln.docstates
+
+## Ignore IDE specific files
+.vs/
+.vscode/
+.idea/
+*.swp
+*.lut
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+## Ignore OS generated files
+.DS_Store
+Thumbs.db
+
+## Ignore App Settings (Bảo mật thông tin nhạy cảm)
+**/appsettings.Development.json
+**/appsettings.Local.json
+
+## Ignore Publish output
+publish/
+
+## Ignore NuGet Packages
+*.nupkg
+**/packages/*
+!**/packages/build/
+
+## Ignore Entity Framework Migrations (Tùy chọn - thường nên giữ, nhưng bỏ qua file log)
+*.log
+
+## Ignore Rider files
+.idea/
+*.sln.iml
