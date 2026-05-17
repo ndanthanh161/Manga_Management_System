@@ -1,8 +1,8 @@
 using Mapster;
 using MMS.Application.Interfaces;
 using MMS.Application.Interfaces.Services;
+using MMS.Domain.Entities;
 using MMS.Domain.Enums;
-using TaskEntity = MMS.Domain.Entities.Task;
 
 namespace MMS.Application.Services;
 
@@ -23,9 +23,9 @@ public class TaskService : ITaskService
         _ = await _uow.Users.GetByIdAsync(request.AssistantId)
             ?? throw new KeyNotFoundException($"Assistant {request.AssistantId} not found.");
 
-        var task = request.Adapt<TaskEntity>();
+        var task = request.Adapt<WorkTask>();
         task.Id = Guid.NewGuid();
-        task.Status = AppTaskStatus.Todo;
+        task.Status = WorkTaskStatus.Todo;
 
         await _uow.Tasks.AddAsync(task);
         await _uow.SaveChangesAsync();

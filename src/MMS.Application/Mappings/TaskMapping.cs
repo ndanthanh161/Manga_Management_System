@@ -1,5 +1,5 @@
 using Mapster;
-using TaskEntity = MMS.Domain.Entities.Task;
+using MMS.Domain.Entities;
 
 namespace MMS.Application.Mappings;
 
@@ -7,13 +7,13 @@ public class TaskMapping : IRegister
 {
     public void Register(TypeAdapterConfig config)
     {
-        // Task -> TaskResponse
-        config.NewConfig<TaskEntity, TaskResponse>()
+        // WorkTask -> TaskResponse
+        config.NewConfig<WorkTask, TaskResponse>()
             .Map(dest => dest.AssignedUserName, src => src.AssignedUser != null ? src.AssignedUser.Username : null)
             .Map(dest => dest.Status, src => src.Status.ToString());
 
-        // AssignTaskRequest -> Task
-        config.NewConfig<AssignTaskRequest, TaskEntity>()
+        // AssignTaskRequest -> WorkTask
+        config.NewConfig<AssignTaskRequest, WorkTask>()
             .Ignore(dest => dest.Id)
             .Ignore(dest => dest.AssignedUser!)
             .Ignore(dest => dest.Region!)

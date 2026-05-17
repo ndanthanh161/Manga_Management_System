@@ -15,5 +15,5 @@ public class Region
     public Guid? PageId { get; set; }
     public Page? Page { get; set; }
 
-    public ICollection<Task> Tasks { get; set; } = new List<Task>();
+    public ICollection<WorkTask> Tasks { get; set; } = new List<WorkTask>();
 }

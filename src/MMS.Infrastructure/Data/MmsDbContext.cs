@@ -16,7 +16,7 @@ public class MmsDbContext : DbContext
     public DbSet<Manuscript> Manuscripts { get; set; } = null!;
     public DbSet<Asset> Assets { get; set; } = null!;
     public DbSet<Submission> Submissions { get; set; } = null!;
-    public DbSet<MMS.Domain.Entities.Task> Tasks { get; set; } = null!;
+    public DbSet<WorkTask> Tasks { get; set; } = null!;
     public DbSet<Region> Regions { get; set; } = null!;
     public DbSet<Notification> Notifications { get; set; } = null!;
     public DbSet<Comment> Comments { get; set; } = null!;
@@ -108,13 +108,13 @@ public class MmsDbContext : DbContext
             .OnDelete(DeleteBehavior.Restrict);
 
         // Task relations
-        modelBuilder.Entity<MMS.Domain.Entities.Task>()
+        modelBuilder.Entity<WorkTask>()
             .HasOne(t => t.AssignedUser)
             .WithMany(u => u.Tasks)
             .HasForeignKey(t => t.AssignedUserId)
             .OnDelete(DeleteBehavior.SetNull);
 
-        modelBuilder.Entity<MMS.Domain.Entities.Task>()
+        modelBuilder.Entity<WorkTask>()
             .HasOne(t => t.Region)
             .WithMany(r => r.Tasks)
             .HasForeignKey(t => t.RegionId)
@@ -128,7 +128,7 @@ public class MmsDbContext : DbContext
             .OnDelete(DeleteBehavior.Cascade);
 
         // --- ENUM TO STRING CONVERSIONS ---
-        modelBuilder.Entity<MMS.Domain.Entities.Task>()
+        modelBuilder.Entity<WorkTask>()
             .Property(t => t.Status)
             .HasConversion<string>();
 

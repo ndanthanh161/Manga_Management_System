@@ -1,6 +1,6 @@
 namespace MMS.Domain.Enums;
 
-public enum AppTaskStatus
+public enum WorkTaskStatus
 {
     Todo,
     InProgress,

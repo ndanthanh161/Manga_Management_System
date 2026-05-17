@@ -1,11 +1,10 @@
 using MMS.Domain.Entities;
-using TaskEntity = MMS.Domain.Entities.Task;
 
 namespace MMS.Application.Interfaces.Repositories;
 
-public interface ITaskRepository : IGenericRepository<TaskEntity>
+public interface ITaskRepository : IGenericRepository<WorkTask>
 {
-    Task<IEnumerable<TaskEntity>> GetByAssignedUserIdAsync(Guid userId);
-    Task<IEnumerable<TaskEntity>> GetByRegionIdAsync(Guid regionId);
-    Task<TaskEntity?> GetWithRegionAsync(Guid taskId);
+    Task<IEnumerable<WorkTask>> GetByAssignedUserIdAsync(Guid userId);
+    Task<IEnumerable<WorkTask>> GetByRegionIdAsync(Guid regionId);
+    Task<WorkTask?> GetWithRegionAsync(Guid taskId);
 }

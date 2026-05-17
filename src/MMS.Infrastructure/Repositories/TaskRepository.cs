@@ -1,15 +1,15 @@
 using Microsoft.EntityFrameworkCore;
 using MMS.Application.Interfaces.Repositories;
+using MMS.Domain.Entities;
 using MMS.Infrastructure.Data;
-using TaskEntity = MMS.Domain.Entities.Task;
 
 namespace MMS.Infrastructure.Repositories;
 
-public class TaskRepository : GenericRepository<TaskEntity>, ITaskRepository
+public class TaskRepository : GenericRepository<WorkTask>, ITaskRepository
 {
     public TaskRepository(MmsDbContext context) : base(context) { }
 
-    public async Task<IEnumerable<TaskEntity>> GetByAssignedUserIdAsync(Guid userId)
+    public async Task<IEnumerable<WorkTask>> GetByAssignedUserIdAsync(Guid userId)
     {
         return await _context.Tasks
             .Include(t => t.Region)
@@ -18,7 +18,7 @@ public class TaskRepository : GenericRepository<TaskEntity>, ITaskRepository
             .ToListAsync();
     }
 
-    public async Task<IEnumerable<TaskEntity>> GetByRegionIdAsync(Guid regionId)
+    public async Task<IEnumerable<WorkTask>> GetByRegionIdAsync(Guid regionId)
     {
         return await _context.Tasks
             .Include(t => t.AssignedUser)
@@ -26,7 +26,7 @@ public class TaskRepository : GenericRepository<TaskEntity>, ITaskRepository
             .ToListAsync();
     }
 
-    public async Task<TaskEntity?> GetWithRegionAsync(Guid taskId)
+    public async Task<WorkTask?> GetWithRegionAsync(Guid taskId)
     {
         return await _context.Tasks
             .Include(t => t.Region).ThenInclude(r => r != null ? r.Page : null)

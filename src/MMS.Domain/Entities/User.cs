@@ -13,7 +13,7 @@ public class User
     // Relationships
     public ICollection<Role> Roles { get; set; } = new List<Role>();
     public ICollection<Series> Series { get; set; } = new List<Series>();
-    public ICollection<Task> Tasks { get; set; } = new List<Task>();
+    public ICollection<WorkTask> Tasks { get; set; } = new List<WorkTask>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<BoardVote> BoardVotes { get; set; } = new List<BoardVote>();
 }
