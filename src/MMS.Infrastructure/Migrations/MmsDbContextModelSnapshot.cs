@@ -193,7 +193,12 @@ namespace MMS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("SubmissionId");
 
                     b.ToTable("Manuscripts");
                 });
@@ -338,11 +343,28 @@ namespace MMS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<double>("Height")
+                        .HasColumnType("float");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid?>("PageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<double>("Width")
+                        .HasColumnType("float");
+
+                    b.Property<double>("X")
+                        .HasColumnType("float");
+
+                    b.Property<double>("Y")
+                        .HasColumnType("float");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("PageId");
 
                     b.ToTable("Regions");
                 });
@@ -410,9 +432,15 @@ namespace MMS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid>("MangakaId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Note")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("SeriesId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -426,6 +454,10 @@ namespace MMS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MangakaId");
+
+                    b.HasIndex("SeriesId");
 
                     b.ToTable("Submissions");
                 });
@@ -639,6 +671,17 @@ namespace MMS.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("MMS.Domain.Entities.Manuscript", b =>
+                {
+                    b.HasOne("MMS.Domain.Entities.Submission", "Submission")
+                        .WithMany("Manuscripts")
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Submission");
+                });
+
             modelBuilder.Entity("MMS.Domain.Entities.Notification", b =>
                 {
                     b.HasOne("MMS.Domain.Entities.User", "User")
@@ -702,6 +745,16 @@ namespace MMS.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("MMS.Domain.Entities.Region", b =>
+                {
+                    b.HasOne("MMS.Domain.Entities.Page", "Page")
+                        .WithMany()
+                        .HasForeignKey("PageId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Page");
+                });
+
             modelBuilder.Entity("MMS.Domain.Entities.Series", b =>
                 {
                     b.HasOne("MMS.Domain.Entities.User", "Author")
@@ -711,6 +764,25 @@ namespace MMS.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Author");
+                });
+
+            modelBuilder.Entity("MMS.Domain.Entities.Submission", b =>
+                {
+                    b.HasOne("MMS.Domain.Entities.User", "Mangaka")
+                        .WithMany()
+                        .HasForeignKey("MangakaId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MMS.Domain.Entities.Series", "Series")
+                        .WithMany()
+                        .HasForeignKey("SeriesId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Mangaka");
+
+                    b.Navigation("Series");
                 });
 
             modelBuilder.Entity("MMS.Domain.Entities.Task", b =>
@@ -789,6 +861,8 @@ namespace MMS.Infrastructure.Migrations
 
             modelBuilder.Entity("MMS.Domain.Entities.Submission", b =>
                 {
+                    b.Navigation("Manuscripts");
+
                     b.Navigation("Votes");
                 });
 

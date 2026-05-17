@@ -1,4 +1,3 @@
-using MMS.Application.DTOs;
 using MMS.Application.Interfaces;
 using MMS.Application.Interfaces.Services;
 using MMS.Application.Common;
@@ -49,7 +48,7 @@ public class AuthService : IAuthService
         var response = user.Adapt<AuthResponse>();
         response.AccessToken = accessToken;
         response.RefreshToken = refreshToken;
-        response.Roles = user.Roles.Select(r => r.Name).ToList();
+        // Roles được Mapster tự map qua AuthMapping
 
         return Result<AuthResponse>.Success(response, "Login successful");
     }
@@ -114,7 +113,7 @@ public class AuthService : IAuthService
         var response = user.Adapt<AuthResponse>();
         response.AccessToken = newAccessToken;
         response.RefreshToken = newRefreshToken;
-        response.Roles = user.Roles.Select(r => r.Name).ToList();
+        // Roles được Mapster tự map qua AuthMapping
 
         return Result<AuthResponse>.Success(response, "Token refreshed successfully");
     }

@@ -10,8 +10,15 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IUserService, UserService>(); // Added back
-        
+        services.AddScoped<IUserService, UserService>();
+
+        // Mangaka Flow Services
+        services.AddScoped<ISeriesService, SeriesService>();
+        services.AddScoped<ISubmissionService, SubmissionService>();
+        services.AddScoped<ITaskService, TaskService>();
+        services.AddScoped<IRegionService, RegionService>();
+        services.AddScoped<IAnnotationService, AnnotationService>();
+
         return services;
     }
 }

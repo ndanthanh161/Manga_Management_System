@@ -1,4 +1,4 @@
-namespace MMS.Application.DTOs;
+namespace MMS.Application.DTOs.Auth;
 
 public record AuthResponse
 {

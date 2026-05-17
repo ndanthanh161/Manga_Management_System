@@ -1,13 +1,10 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using MMS.API.GraphQL;
+using MMS.API;
 using MMS.API.Middleware;
 using MMS.Application;
 using MMS.Application.Common;
 using MMS.Infrastructure;
 using MMS.Infrastructure.Data;
 using Mapster;
-using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,37 +13,11 @@ MappingConfig.Configure();
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
 
-// 2. Authentication & Authorization (Registered directly)
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["Jwt:Issuer"],
-            ValidAudience = builder.Configuration["Jwt:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
-                builder.Configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT Secret is not configured!")))
-        };
-    });
+// 2. Authentication & Authorization
+builder.Services.AddJwtAuthentication(builder.Configuration);
 
-builder.Services.AddAuthorization();
-builder.Services.AddHttpContextAccessor();
-
-// 3. GraphQL Configuration (Registered directly)
-builder.Services.AddGraphQLServer()
-    .AddQueryType<Query>()
-    .AddMutationType()
-    .AddTypeExtension<AuthMutations>()
-    .AddTypeExtension<UserMutations>()
-    .AddProjections()
-    .AddFiltering()
-    .AddSorting()
-    .AddAuthorization();
-    // .AddErrorFilter<GraphQLErrorFilter>();
+// 3. GraphQL Configuration
+builder.Services.AddGraphQL();
 
 // 4. API Tools
 builder.Services.AddMapster();

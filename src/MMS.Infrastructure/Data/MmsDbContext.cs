@@ -65,12 +65,40 @@ public class MmsDbContext : DbContext
             .HasForeignKey(a => a.ManuscriptId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Submission -> Vote
+        // Submission -> Series
+        modelBuilder.Entity<Submission>()
+            .HasOne(s => s.Series)
+            .WithMany()
+            .HasForeignKey(s => s.SeriesId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Submission -> Mangaka (User)
+        modelBuilder.Entity<Submission>()
+            .HasOne(s => s.Mangaka)
+            .WithMany()
+            .HasForeignKey(s => s.MangakaId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Submission -> Votes
         modelBuilder.Entity<Submission>()
             .HasMany(s => s.Votes)
             .WithOne(v => v.Submission)
             .HasForeignKey(v => v.SubmissionId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Submission -> Manuscripts
+        modelBuilder.Entity<Submission>()
+            .HasMany(s => s.Manuscripts)
+            .WithOne(m => m.Submission)
+            .HasForeignKey(m => m.SubmissionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Region -> Page
+        modelBuilder.Entity<Region>()
+            .HasOne(r => r.Page)
+            .WithMany()
+            .HasForeignKey(r => r.PageId)
+            .OnDelete(DeleteBehavior.SetNull);
             
         // Vote -> BoardMember
         modelBuilder.Entity<BoardVote>()

@@ -1,4 +1,4 @@
-using MMS.Application.DTOs;
+using MMS.Application.DTOs.User;
 using MMS.Application.Interfaces.Services;
 using MMS.Application.Common;
 

@@ -11,6 +11,11 @@ public class UnitOfWork : IUnitOfWork
     private IUserRepository? _users;
     private IRoleRepository? _roles;
     private IInviteRepository? _invites;
+    private ISeriesRepository? _series;
+    private ISubmissionRepository? _submissions;
+    private IRegionRepository? _regions;
+    private ITaskRepository? _tasks;
+    private IAnnotationRepository? _annotations;
 
     public UnitOfWork(MmsDbContext context)
     {
@@ -20,6 +25,11 @@ public class UnitOfWork : IUnitOfWork
     public IUserRepository Users => _users ??= new UserRepository(_context);
     public IRoleRepository Roles => _roles ??= new RoleRepository(_context);
     public IInviteRepository Invites => _invites ??= new InviteRepository(_context);
+    public ISeriesRepository Series => _series ??= new SeriesRepository(_context);
+    public ISubmissionRepository Submissions => _submissions ??= new SubmissionRepository(_context);
+    public IRegionRepository Regions => _regions ??= new RegionRepository(_context);
+    public ITaskRepository Tasks => _tasks ??= new TaskRepository(_context);
+    public IAnnotationRepository Annotations => _annotations ??= new AnnotationRepository(_context);
 
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
 

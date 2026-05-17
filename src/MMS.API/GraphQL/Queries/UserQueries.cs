@@ -1,15 +1,14 @@
-using MMS.Application.Interfaces.Services;
-using MMS.Application.DTOs;
+using MMS.Application.DTOs.User;
 using MMS.Application.Common;
+using MMS.Application.Interfaces.Services;
 
 namespace MMS.API.GraphQL;
 
-public class Query
+public class UserQueries
 {
-    [UseProjection]
     [UseFiltering]
     [UseSorting]
-    public async Task<IEnumerable<UserDto>> GetUsers([Service] IUserService userService) 
+    public async Task<IEnumerable<UserDto>> GetUsers([Service] IUserService userService)
     {
         var result = await userService.GetAllUsersAsync();
         return result.Succeeded ? result.Data! : Enumerable.Empty<UserDto>();

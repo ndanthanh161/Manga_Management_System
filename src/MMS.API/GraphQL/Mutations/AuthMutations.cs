@@ -1,4 +1,4 @@
-using MMS.Application.DTOs;
+using MMS.Application.DTOs.Auth;
 using MMS.Application.Interfaces.Services;
 using System.Security.Claims;
 using HotChocolate.Authorization;
