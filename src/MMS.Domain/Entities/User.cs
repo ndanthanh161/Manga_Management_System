@@ -16,4 +16,9 @@ public class User
     public ICollection<WorkTask> Tasks { get; set; } = new List<WorkTask>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public ICollection<BoardVote> BoardVotes { get; set; } = new List<BoardVote>();
+
+    // Mangaka - Assistant Self-Referencing Relationship
+    public Guid? MangakaId { get; set; }
+    public User? Mangaka { get; set; }
+    public ICollection<User> Assistants { get; set; } = new List<User>();
 }

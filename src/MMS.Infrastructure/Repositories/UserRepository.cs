@@ -22,7 +22,7 @@ public class UserRepository : GenericRepository<User>, IUserRepository
         => await _context.Users.Include(u => u.Roles).Include(u => u.RefreshTokens)
             .FirstOrDefaultAsync(u => u.RefreshTokens.Any(t => t.Token == refreshToken));
 
-    public async Task<User> ProcessInviteRegistrationAsync(string email, string username, string passwordHash, string roleName)
+    public async Task<User> ProcessInviteRegistrationAsync(string email, string username, string passwordHash, string roleName, Guid? invitedById)
     {
         var role = await _context.Roles.FirstOrDefaultAsync(r => r.Name == roleName);
         
@@ -32,7 +32,8 @@ public class UserRepository : GenericRepository<User>, IUserRepository
             Email = email,
             Username = username,
             PasswordHash = passwordHash,
-            Roles = role != null ? new List<Role> { role } : new List<Role>()
+            Roles = role != null ? new List<Role> { role } : new List<Role>(),
+            MangakaId = roleName == "Assistant" ? invitedById : null
         };
 
         await _context.Users.AddAsync(user);
@@ -59,4 +60,10 @@ public class UserRepository : GenericRepository<User>, IUserRepository
         var token = await _context.Set<RefreshToken>().FirstOrDefaultAsync(t => t.Token == refreshToken);
         if (token != null) _context.Set<RefreshToken>().Remove(token);
     }
+
+    public async Task<IEnumerable<User>> GetAssistantsByMangakaAsync(Guid mangakaId)
+        => await _context.Users
+            .Include(u => u.Roles)
+            .Where(u => u.MangakaId == mangakaId)
+            .ToListAsync();
 }

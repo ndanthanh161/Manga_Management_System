@@ -16,6 +16,8 @@ public class UnitOfWork : IUnitOfWork
     private IRegionRepository? _regions;
     private ITaskRepository? _tasks;
     private IAnnotationRepository? _annotations;
+    private IChapterRepository? _chapters;
+    private IPageRepository? _pages;
 
     public UnitOfWork(MmsDbContext context)
     {
@@ -30,6 +32,8 @@ public class UnitOfWork : IUnitOfWork
     public IRegionRepository Regions => _regions ??= new RegionRepository(_context);
     public ITaskRepository Tasks => _tasks ??= new TaskRepository(_context);
     public IAnnotationRepository Annotations => _annotations ??= new AnnotationRepository(_context);
+    public IChapterRepository Chapters => _chapters ??= new ChapterRepository(_context);
+    public IPageRepository Pages => _pages ??= new PageRepository(_context);
 
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
 

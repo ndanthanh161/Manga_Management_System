@@ -12,6 +12,8 @@ public interface IUnitOfWork : IDisposable
     IRegionRepository Regions { get; }
     ITaskRepository Tasks { get; }
     IAnnotationRepository Annotations { get; }
+    IChapterRepository Chapters { get; }
+    IPageRepository Pages { get; }
 
     Task<int> SaveChangesAsync();
 }

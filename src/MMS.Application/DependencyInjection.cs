@@ -18,6 +18,8 @@ public static class DependencyInjection
         services.AddScoped<ITaskService, TaskService>();
         services.AddScoped<IRegionService, RegionService>();
         services.AddScoped<IAnnotationService, AnnotationService>();
+        services.AddScoped<IChapterService, ChapterService>();
+        services.AddScoped<IPageService, PageService>();
 
         return services;
     }

@@ -462,49 +462,6 @@ namespace MMS.Infrastructure.Migrations
                     b.ToTable("Submissions");
                 });
 
-            modelBuilder.Entity("MMS.Domain.Entities.Task", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("AssignedUserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("DueDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Priority")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid?>("RegionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AssignedUserId");
-
-                    b.HasIndex("RegionId");
-
-                    b.ToTable("Tasks");
-                });
-
             modelBuilder.Entity("MMS.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -521,6 +478,9 @@ namespace MMS.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<Guid?>("MangakaId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -533,6 +493,8 @@ namespace MMS.Infrastructure.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("MangakaId");
 
                     b.ToTable("Users");
                 });
@@ -575,6 +537,49 @@ namespace MMS.Infrastructure.Migrations
                     b.HasIndex("InvitedById");
 
                     b.ToTable("UserInvites");
+                });
+
+            modelBuilder.Entity("MMS.Domain.Entities.WorkTask", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("AssignedUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid?>("RegionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedUserId");
+
+                    b.HasIndex("RegionId");
+
+                    b.ToTable("Tasks");
                 });
 
             modelBuilder.Entity("RoleUser", b =>
@@ -785,7 +790,28 @@ namespace MMS.Infrastructure.Migrations
                     b.Navigation("Series");
                 });
 
-            modelBuilder.Entity("MMS.Domain.Entities.Task", b =>
+            modelBuilder.Entity("MMS.Domain.Entities.User", b =>
+                {
+                    b.HasOne("MMS.Domain.Entities.User", "Mangaka")
+                        .WithMany("Assistants")
+                        .HasForeignKey("MangakaId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Mangaka");
+                });
+
+            modelBuilder.Entity("MMS.Domain.Entities.UserInvite", b =>
+                {
+                    b.HasOne("MMS.Domain.Entities.User", "InvitedBy")
+                        .WithMany()
+                        .HasForeignKey("InvitedById")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("InvitedBy");
+                });
+
+            modelBuilder.Entity("MMS.Domain.Entities.WorkTask", b =>
                 {
                     b.HasOne("MMS.Domain.Entities.User", "AssignedUser")
                         .WithMany("Tasks")
@@ -800,17 +826,6 @@ namespace MMS.Infrastructure.Migrations
                     b.Navigation("AssignedUser");
 
                     b.Navigation("Region");
-                });
-
-            modelBuilder.Entity("MMS.Domain.Entities.UserInvite", b =>
-                {
-                    b.HasOne("MMS.Domain.Entities.User", "InvitedBy")
-                        .WithMany()
-                        .HasForeignKey("InvitedById")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("InvitedBy");
                 });
 
             modelBuilder.Entity("RoleUser", b =>
@@ -868,6 +883,8 @@ namespace MMS.Infrastructure.Migrations
 
             modelBuilder.Entity("MMS.Domain.Entities.User", b =>
                 {
+                    b.Navigation("Assistants");
+
                     b.Navigation("BoardVotes");
 
                     b.Navigation("RefreshTokens");

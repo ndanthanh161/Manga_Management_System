@@ -9,4 +9,5 @@ public interface IUserService
     Task<Result<UserDto>> CreateUserAsync(CreateUserRequest request);
     Task<Result<UserDto>> UpdateUserAsync(UpdateUserRequest request);
     Task<Result<bool>> DeleteUserAsync(Guid id);
+    Task<Result<IEnumerable<UserDto>>> GetAssistantsByMangakaAsync(Guid mangakaId);
 }

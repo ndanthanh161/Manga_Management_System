@@ -44,6 +44,13 @@ public class MmsDbContext : DbContext
             .HasForeignKey(s => s.AuthorId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Mangaka <-> Assistant self-referencing relationship
+        modelBuilder.Entity<User>()
+            .HasOne(u => u.Mangaka)
+            .WithMany(u => u.Assistants)
+            .HasForeignKey(u => u.MangakaId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Series -> Chapter
         modelBuilder.Entity<Series>()
             .HasMany(s => s.Chapters)

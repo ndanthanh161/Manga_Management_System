@@ -20,8 +20,13 @@ public class TaskService : ITaskService
         _ = await _uow.Regions.GetByIdAsync(request.RegionId)
             ?? throw new KeyNotFoundException($"Region {request.RegionId} not found.");
 
-        _ = await _uow.Users.GetByIdAsync(request.AssistantId)
+        var assistant = await _uow.Users.GetUserWithRolesAsync(request.AssistantId)
             ?? throw new KeyNotFoundException($"Assistant {request.AssistantId} not found.");
+
+        if (assistant.MangakaId != mangakaId)
+        {
+            throw new UnauthorizedAccessException("Bạn chỉ được phép giao việc cho Trợ lý riêng thuộc quyền quản lý của mình.");
+        }
 
         var task = request.Adapt<WorkTask>();
         task.Id = Guid.NewGuid();

@@ -8,4 +8,5 @@ public record AuthResponse
     public string AccessToken { get; set; } = string.Empty;
     public string RefreshToken { get; set; } = string.Empty;
     public List<string> Roles { get; set; } = new List<string>();
+    public Guid? MangakaId { get; set; }
 }

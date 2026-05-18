@@ -82,4 +82,10 @@ public class UserService : IUserService
         await _unitOfWork.SaveChangesAsync();
         return Result<bool>.Success(true);
     }
+
+    public async Task<Result<IEnumerable<UserDto>>> GetAssistantsByMangakaAsync(Guid mangakaId)
+    {
+        var assistants = await _unitOfWork.Users.GetAssistantsByMangakaAsync(mangakaId);
+        return Result<IEnumerable<UserDto>>.Success(assistants.Adapt<IEnumerable<UserDto>>());
+    }
 }

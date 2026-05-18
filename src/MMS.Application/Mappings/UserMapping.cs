@@ -15,8 +15,10 @@ public class UserMapping : IRegister
         config.NewConfig<CreateUserRequest, User>()
             .Ignore(dest => dest.Id)
             .Ignore(dest => dest.PasswordHash)
+            .Ignore(dest => dest.Roles)
             .Map(dest => dest.CreatedAt, src => DateTime.UtcNow)
-            .Map(dest => dest.IsActive, src => true);
+            .Map(dest => dest.IsActive, src => true)
+            .Map(dest => dest.MangakaId, src => src.MangakaId);
 
         // UpdateUserRequest -> User
         config.NewConfig<UpdateUserRequest, User>()

@@ -80,7 +80,8 @@ public class AuthService : IAuthService
             invite.Email, 
             request.Username, 
             passwordHash, 
-            invite.RoleName);
+            invite.RoleName,
+            invite.InvitedById);
 
         await _unitOfWork.Invites.MarkAsUsedAsync(invite.Token);
         await _unitOfWork.SaveChangesAsync();
