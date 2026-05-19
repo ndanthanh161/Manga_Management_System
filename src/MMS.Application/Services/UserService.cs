@@ -88,4 +88,26 @@ public class UserService : IUserService
         var assistants = await _unitOfWork.Users.GetAssistantsByMangakaAsync(mangakaId);
         return Result<IEnumerable<UserDto>>.Success(assistants.Adapt<IEnumerable<UserDto>>());
     }
+
+    public async Task<Result<UserDto>> SetAssistantBaseSalaryAsync(Guid mangakaId, Guid assistantId, decimal baseSalary)
+    {
+        var assistant = await _unitOfWork.Users.GetUserWithRolesAsync(assistantId);
+        if (assistant == null) return Result<UserDto>.Failure("Trợ lý không tồn tại.");
+
+        if (assistant.MangakaId != mangakaId)
+        {
+            return Result<UserDto>.Failure("Bạn chỉ có quyền thiết lập lương cho Trợ lý trực thuộc quản lý của mình.");
+        }
+
+        if (baseSalary < 0)
+        {
+            return Result<UserDto>.Failure("Lương cơ bản không được nhỏ hơn 0.");
+        }
+
+        assistant.BaseSalary = baseSalary;
+        _unitOfWork.Users.Update(assistant);
+        await _unitOfWork.SaveChangesAsync();
+
+        return Result<UserDto>.Success(assistant.Adapt<UserDto>());
+    }
 }

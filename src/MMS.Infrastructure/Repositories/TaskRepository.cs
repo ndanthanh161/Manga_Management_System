@@ -12,7 +12,8 @@ public class TaskRepository : GenericRepository<WorkTask>, ITaskRepository
     public async Task<IEnumerable<WorkTask>> GetByAssignedUserIdAsync(Guid userId)
     {
         return await _context.Tasks
-            .Include(t => t.Region)
+            .Include(t => t.Region).ThenInclude(r => r != null ? r.Page : null)
+            .Include(t => t.AssignedUser)
             .Where(t => t.AssignedUserId == userId)
             .OrderByDescending(t => t.CreatedAt)
             .ToListAsync();

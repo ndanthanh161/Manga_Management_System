@@ -8,7 +8,7 @@ namespace MMS.API.GraphQL;
 [ExtendObjectType("Mutation")]
 public class TaskMutations
 {
-    [Authorize]
+    [Authorize(Roles = new[] { "Mangaka" })]
     public async Task<TaskResponse> AssignTask(
         [Service] ITaskService taskService,
         ClaimsPrincipal claimsPrincipal,
@@ -18,7 +18,7 @@ public class TaskMutations
         return await taskService.AssignTaskAsync(mangakaId, input);
     }
 
-    [Authorize]
+    [Authorize(Roles = new[] { "Mangaka", "Assistant" })]
     public async Task<TaskResponse> UpdateTaskStatus(
         [Service] ITaskService taskService,
         ClaimsPrincipal claimsPrincipal,

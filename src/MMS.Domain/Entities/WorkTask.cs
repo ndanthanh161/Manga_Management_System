@@ -17,4 +17,9 @@ public class WorkTask
 
     public Guid? RegionId { get; set; }
     public Region? Region { get; set; }
+
+    public string? ResourceUrl { get; set; }
+    public string? ResultFileUrl { get; set; }
+    public string? ResultNote { get; set; }
+    public DateTime? CompletedAt { get; set; }
 }

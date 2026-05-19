@@ -21,7 +21,7 @@ public class UserQueries
         return await userService.GetUserByIdAsync(id);
     }
 
-    [Authorize]
+    [Authorize(Roles = new[] { "Mangaka" })]
     public async Task<IEnumerable<UserDto>> GetMyAssistants(
         [Service] IUserService userService,
         ClaimsPrincipal claimsPrincipal)

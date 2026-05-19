@@ -10,4 +10,5 @@ public interface IUserService
     Task<Result<UserDto>> UpdateUserAsync(UpdateUserRequest request);
     Task<Result<bool>> DeleteUserAsync(Guid id);
     Task<Result<IEnumerable<UserDto>>> GetAssistantsByMangakaAsync(Guid mangakaId);
+    Task<Result<UserDto>> SetAssistantBaseSalaryAsync(Guid mangakaId, Guid assistantId, decimal baseSalary);
 }

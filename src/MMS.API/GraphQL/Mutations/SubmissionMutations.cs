@@ -8,7 +8,7 @@ namespace MMS.API.GraphQL;
 [ExtendObjectType("Mutation")]
 public class SubmissionMutations
 {
-    [Authorize]
+    [Authorize(Roles = new[] { "Mangaka" })]
     public async Task<SubmissionResponse> CreateSubmission(
         [Service] ISubmissionService submissionService,
         ClaimsPrincipal claimsPrincipal,

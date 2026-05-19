@@ -1,6 +1,8 @@
 using MMS.Application.DTOs.User;
 using MMS.Application.Interfaces.Services;
 using MMS.Application.Common;
+using System.Security.Claims;
+using HotChocolate.Authorization;
 
 namespace MMS.API.GraphQL;
 
@@ -26,5 +28,16 @@ public class UserMutations
         Guid id)
     {
         return await userService.DeleteUserAsync(id);
+    }
+
+    [Authorize(Roles = new[] { "Mangaka" })]
+    public async Task<MMS.Application.Common.Result<UserDto>> SetAssistantBaseSalary(
+        [Service] IUserService userService,
+        ClaimsPrincipal claimsPrincipal,
+        Guid assistantId,
+        decimal baseSalary)
+    {
+        var mangakaId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
+        return await userService.SetAssistantBaseSalaryAsync(mangakaId, assistantId, baseSalary);
     }
 }

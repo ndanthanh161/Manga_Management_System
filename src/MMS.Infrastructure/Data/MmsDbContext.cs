@@ -134,6 +134,12 @@ public class MmsDbContext : DbContext
             .HasForeignKey(v => v.SeriesId)
             .OnDelete(DeleteBehavior.Cascade);
 
+
+        modelBuilder.Entity<User>()
+            .Property(u => u.BaseSalary)
+            .HasColumnType("decimal(18,2)")
+            .HasDefaultValue(0);
+
         // --- ENUM TO STRING CONVERSIONS ---
         modelBuilder.Entity<WorkTask>()
             .Property(t => t.Status)
