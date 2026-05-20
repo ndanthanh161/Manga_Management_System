@@ -22,7 +22,7 @@ public class AuthMutations
         ClaimsPrincipal claimsPrincipal)
     {
         var userIdString = claimsPrincipal.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userIdString)) return MMS.Application.Common.Result<UserInviteDto>.Failure("Unauthorized", 401);
+        if (string.IsNullOrEmpty(userIdString)) return MMS.Application.Common.Result<UserInviteDto>.Failure("UNAUTHORIZED", "Unauthorized", 401);
 
         return await authService.InviteUserAsync(request, Guid.Parse(userIdString));
     }

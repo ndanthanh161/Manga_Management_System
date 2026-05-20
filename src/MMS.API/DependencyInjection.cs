@@ -62,6 +62,7 @@ public static class DependencyInjection
             .AddProjections()
             .AddFiltering()
             .AddSorting()
-            .AddAuthorization();
+            .AddAuthorization()
+            .AddErrorFilter<GraphQLErrorFilter>();
     }
 }

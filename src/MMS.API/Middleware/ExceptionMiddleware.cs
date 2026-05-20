@@ -1,5 +1,6 @@
-using System.Net;
-using System.Text.Json;
+using System.Diagnostics;
+using Microsoft.AspNetCore.Mvc;
+using MMS.Domain.Exceptions;
 
 namespace MMS.API.Middleware;
 
@@ -22,17 +23,37 @@ public class ExceptionMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "An unhandled exception has occurred.");
-            await HandleExceptionAsync(context, ex);
+            var statusCode = ex switch
+            {
+                DomainException => 422,
+                UnauthorizedAccessException => 401,
+                _ => 500
+            };
+
+            var errorCode = ex is DomainException de ? de.ErrorCode : 
+                            (ex is InfrastructureException ie ? ie.ErrorCode : "INTERNAL_ERROR");
+                            
+            var traceId = Activity.Current?.Id ?? context.TraceIdentifier;
+            
+            _logger.LogError(ex, "Exception {ErrorCode} | TraceId: {TraceId}", errorCode, traceId);
+
+            context.Response.StatusCode = statusCode;
+            context.Response.ContentType = "application/problem+json";
+            
+            var problem = new ProblemDetails
+            {
+                Title = statusCode == 500 ? "An internal server error occurred." : "Request failed",
+                Detail = statusCode == 500 ? null : ex.Message,
+                Status = statusCode,
+                Instance = context.Request.Path,
+                Extensions =
+                {
+                    ["traceId"] = traceId,
+                    ["errorCode"] = errorCode
+                }
+            };
+
+            await context.Response.WriteAsJsonAsync(problem);
         }
-    }
-
-    private static Task HandleExceptionAsync(HttpContext context, Exception exception)
-    {
-        context.Response.ContentType = "application/json";
-        context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
-
-        var result = JsonSerializer.Serialize(new { message = exception.Message });
-        return context.Response.WriteAsync(result);
     }
 }

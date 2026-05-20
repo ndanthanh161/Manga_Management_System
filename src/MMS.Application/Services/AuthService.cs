@@ -34,10 +34,10 @@ public class AuthService : IAuthService
                    ?? await _unitOfWork.Users.GetByUsernameAsync(request.EmailOrUsername);
 
         if (user == null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
-            return Result<AuthResponse>.Failure("Invalid credentials", 401);
+            return Result<AuthResponse>.Failure("INVALID_CREDENTIALS", "Invalid credentials", 401);
 
         if (!user.IsActive)
-            return Result<AuthResponse>.Failure("Account is deactivated", 403);
+            return Result<AuthResponse>.Failure("ACCOUNT_DEACTIVATED", "Account is deactivated", 403);
 
         var accessToken = _jwtProvider.GenerateAccessToken(user);
         var refreshToken = _jwtProvider.GenerateRefreshToken();
@@ -72,7 +72,7 @@ public class AuthService : IAuthService
     {
         var invite = await _unitOfWork.Invites.GetByTokenAsync(request.Token);
         if (invite == null || invite.IsUsed || invite.ExpiryDate < DateTime.UtcNow)
-            return Result<AuthResponse>.Failure("Invalid or expired invitation token");
+            return Result<AuthResponse>.Failure("INVALID_TOKEN", "Invalid or expired invitation token");
 
         var passwordHash = _passwordHasher.Hash(request.Password);
         
@@ -98,11 +98,11 @@ public class AuthService : IAuthService
     public async Task<Result<AuthResponse>> RefreshTokenAsync(string refreshToken)
     {
         var user = await _unitOfWork.Users.GetByRefreshTokenAsync(refreshToken);
-        if (user == null) return Result<AuthResponse>.Failure("Invalid refresh token");
+        if (user == null) return Result<AuthResponse>.Failure("INVALID_TOKEN", "Invalid refresh token");
 
         var tokenModel = user.RefreshTokens.FirstOrDefault(t => t.Token == refreshToken);
         if (tokenModel == null || tokenModel.IsExpired)
-            return Result<AuthResponse>.Failure("Token expired or invalid");
+            return Result<AuthResponse>.Failure("TOKEN_EXPIRED", "Token expired or invalid");
 
         var newAccessToken = _jwtProvider.GenerateAccessToken(user);
         var newRefreshToken = _jwtProvider.GenerateRefreshToken();

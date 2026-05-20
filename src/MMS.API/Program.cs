@@ -5,45 +5,87 @@ using MMS.Application.Common;
 using MMS.Infrastructure;
 using MMS.Infrastructure.Data;
 using Mapster;
+using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
-// 1. Domain Layers & Mapping
-MappingConfig.Configure();
-builder.Services.AddApplication(builder.Configuration);
-builder.Services.AddInfrastructure(builder.Configuration);
-
-// 2. Authentication & Authorization
-builder.Services.AddJwtAuthentication(builder.Configuration);
-
-// 3. GraphQL Configuration
-builder.Services.AddGraphQL();
-
-// 4. API Tools
-builder.Services.AddMapster();
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-var app = builder.Build();
-
-// Seed Database
-await DbInitializer.SeedAsync(app.Services);
-
-// Pipeline
-if (app.Environment.IsDevelopment())
+try
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    Log.Information("Starting MMS API");
+    var builder = WebApplication.CreateBuilder(args);
+
+    builder.Host.UseSerilog((ctx, cfg) => cfg
+        .ReadFrom.Configuration(ctx.Configuration)
+        .Enrich.FromLogContext()
+        .Enrich.WithMachineName()
+        .Enrich.WithThreadId()
+        .WriteTo.Console()
+        .WriteTo.File("logs/mms-.log",
+            rollingInterval: RollingInterval.Day,
+            retainedFileCountLimit: 14,
+            outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{CorrelationId}] {Message:lj}{NewLine}{Exception}")
+        .MinimumLevel.Override("Microsoft", Serilog.Events.LogEventLevel.Warning)
+        .MinimumLevel.Override("Microsoft.EntityFrameworkCore", Serilog.Events.LogEventLevel.Warning)
+    );
+
+    // 1. Domain Layers & Mapping
+    MappingConfig.Configure();
+    builder.Services.AddApplication(builder.Configuration);
+    builder.Services.AddInfrastructure(builder.Configuration);
+
+    // 2. Authentication & Authorization
+    builder.Services.AddJwtAuthentication(builder.Configuration);
+
+    // 3. GraphQL Configuration
+    builder.Services.AddGraphQL();
+
+    // 4. API Tools
+    builder.Services.AddMapster();
+    builder.Services.AddControllers();
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen();
+
+    var app = builder.Build();
+
+    // Seed Database
+    await DbInitializer.SeedAsync(app.Services);
+
+    // Pipeline
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
+
+    app.UseSerilogRequestLogging(opts =>
+    {
+        opts.EnrichDiagnosticContext = (diag, ctx) =>
+        {
+            diag.Set("UserAgent", ctx.Request.Headers.UserAgent.ToString());
+            diag.Set("ClientIP", ctx.Connection.RemoteIpAddress?.ToString());
+        };
+    });
+
+    app.UseMiddleware<CorrelationIdMiddleware>();
+    app.UseMiddleware<ExceptionMiddleware>();
+    app.UseMiddleware<TokenBlacklistMiddleware>();
+    
+    app.UseHttpsRedirection();
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.MapGraphQL();
+    app.MapControllers();
+
+    app.Run();
 }
-
-app.UseMiddleware<ExceptionMiddleware>();
-app.UseMiddleware<TokenBlacklistMiddleware>();
-app.UseHttpsRedirection();
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapGraphQL();
-app.MapControllers();
-
-app.Run();
+catch (Exception ex)
+{
+    Log.Fatal(ex, "Application failed to start");
+}
+finally
+{
+    Log.CloseAndFlush();
+}

@@ -26,6 +26,7 @@ public class MmsDbContext : DbContext
     public DbSet<Annotation> Annotations { get; set; } = null!;
     public DbSet<Ranking> Rankings { get; set; } = null!;
     public DbSet<ReaderVote> ReaderVotes { get; set; } = null!;
+    public DbSet<AuditLog> AuditLogs { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -160,5 +161,27 @@ public class MmsDbContext : DbContext
         modelBuilder.Entity<BoardVote>()
             .Property(v => v.VoteType)
             .HasConversion<string>();
+
+        // AuditLog
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.EntityName).HasMaxLength(128).IsRequired();
+            entity.Property(e => e.EntityDisplayName).HasMaxLength(256);
+            entity.Property(e => e.OldValueJson).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.NewValueJson).HasColumnType("nvarchar(max)");
+            entity.Property(e => e.IpAddress).HasMaxLength(45);
+            entity.Property(e => e.Source).HasMaxLength(64);
+            entity.Property(e => e.Action).HasConversion<string>();
+
+            // Indexes
+            entity.HasIndex(e => e.ActorUserId);
+            entity.HasIndex(e => new { e.EntityName, e.EntityId });
+            entity.HasIndex(e => e.CorrelationId);
+
+            // Index quan trọng cho việc chia partition hoặc filter theo thời gian sau này
+            entity.HasIndex(e => e.OccurredAt).IsClustered(false);
+        });
+
     }
 }

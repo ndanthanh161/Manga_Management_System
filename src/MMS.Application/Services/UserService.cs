@@ -26,7 +26,7 @@ public class UserService : IUserService
     public async Task<Result<UserDto>> GetUserByIdAsync(Guid id)
     {
         var user = await _unitOfWork.Users.GetUserWithRolesAsync(id);
-        if (user == null) return Result<UserDto>.Failure("User not found");
+        if (user == null) return Result<UserDto>.NotFound("USER_NOT_FOUND", "User not found");
 
         return Result<UserDto>.Success(user.Adapt<UserDto>());
     }
@@ -34,7 +34,7 @@ public class UserService : IUserService
     public async Task<Result<UserDto>> CreateUserAsync(CreateUserRequest request)
     {
         var existing = await _unitOfWork.Users.GetByEmailAsync(request.Email);
-        if (existing != null) return Result<UserDto>.Failure("Email already exists");
+        if (existing != null) return Result<UserDto>.Failure("EMAIL_EXISTS", "Email already exists");
 
         // Sử dụng Adapt để Map tự động (Tuân thủ SOLID - OCP/SRP)
         var user = request.Adapt<User>();
@@ -56,7 +56,7 @@ public class UserService : IUserService
     public async Task<Result<UserDto>> UpdateUserAsync(UpdateUserRequest request)
     {
         var user = await _unitOfWork.Users.GetUserWithRolesAsync(request.Id);
-        if (user == null) return Result<UserDto>.Failure("User not found");
+        if (user == null) return Result<UserDto>.NotFound("USER_NOT_FOUND", "User not found");
 
         // Đồng bộ dữ liệu từ request sang entity qua Mapster
         request.Adapt(user);
@@ -76,7 +76,7 @@ public class UserService : IUserService
     public async Task<Result<bool>> DeleteUserAsync(Guid id)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(id);
-        if (user == null) return Result<bool>.Failure("User not found");
+        if (user == null) return Result<bool>.NotFound("USER_NOT_FOUND", "User not found");
 
         _unitOfWork.Users.Remove(user);
         await _unitOfWork.SaveChangesAsync();
@@ -92,16 +92,16 @@ public class UserService : IUserService
     public async Task<Result<UserDto>> SetAssistantBaseSalaryAsync(Guid mangakaId, Guid assistantId, decimal baseSalary)
     {
         var assistant = await _unitOfWork.Users.GetUserWithRolesAsync(assistantId);
-        if (assistant == null) return Result<UserDto>.Failure("Trợ lý không tồn tại.");
+        if (assistant == null) return Result<UserDto>.NotFound("USER_NOT_FOUND", "Trợ lý không tồn tại.");
 
         if (assistant.MangakaId != mangakaId)
         {
-            return Result<UserDto>.Failure("Bạn chỉ có quyền thiết lập lương cho Trợ lý trực thuộc quản lý của mình.");
+            return Result<UserDto>.Forbidden("FORBIDDEN", "Bạn chỉ có quyền thiết lập lương cho Trợ lý trực thuộc quản lý của mình.");
         }
 
         if (baseSalary < 0)
         {
-            return Result<UserDto>.Failure("Lương cơ bản không được nhỏ hơn 0.");
+            return Result<UserDto>.Failure("INVALID_SALARY", "Lương cơ bản không được nhỏ hơn 0.");
         }
 
         assistant.BaseSalary = baseSalary;
