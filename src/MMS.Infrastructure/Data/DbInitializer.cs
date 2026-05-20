@@ -17,15 +17,15 @@ public static class DbInitializer
         context.Database.EnsureCreated();
 
         // Seed Roles nếu chưa có
-        if (!await context.Roles.AnyAsync())
-        {
-            var adminRole = new Role { Name = "Admin" };
-            var mangakaRole = new Role { Name = "Mangaka" };
-            var assistantRole = new Role { Name = "Assistant" };
-            var tantouEditorRole = new Role { Name = "Tantou Editor" };
-            var editorialBoardRole = new Role { Name = "Editorial Board" };
+        var roleNames = new[] { "Admin", "Mangaka", "Assistant", "Tantou Editor", "Editorial Board" };
 
-            await context.Roles.AddRangeAsync(adminRole, mangakaRole, assistantRole, tantouEditorRole, editorialBoardRole);
+        var existingRoles = await context.Roles.Where(r => roleNames.Contains(r.Name)).Select(r => r.Name).ToListAsync();
+
+        var missingRoles = roleNames.Where(name => !existingRoles.Contains(name)).Select(name => new Role { Name = name }).ToList();
+
+        if (missingRoles.Any())
+        {
+            await context.Roles.AddRangeAsync(missingRoles);
             await context.SaveChangesAsync();
         }
 

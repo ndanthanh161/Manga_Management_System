@@ -40,6 +40,10 @@ public class MmsDbContext : DbContext
             .WithMany(r => r.Users)
             .UsingEntity(j => j.ToTable("UserRoles"));
 
+        modelBuilder.Entity<User>()
+            .Property(u => u.EditorialPosition)
+            .HasConversion<string>()
+            .HasMaxLength(32);
         // User relationships
         modelBuilder.Entity<User>()
             .HasMany(u => u.Series)
@@ -117,7 +121,7 @@ public class MmsDbContext : DbContext
             .WithMany()
             .HasForeignKey(r => r.PageId)
             .OnDelete(DeleteBehavior.SetNull);
-            
+
         // Vote -> BoardMember
         modelBuilder.Entity<BoardVote>()
             .HasOne(v => v.BoardMember)

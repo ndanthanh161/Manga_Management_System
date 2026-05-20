@@ -1,3 +1,5 @@
+using MMS.Domain.Enums;
+
 namespace MMS.Domain.Entities;
 
 public class AuditLog
@@ -7,7 +9,7 @@ public class AuditLog
     public string EntityName { get; set; } = string.Empty;
     public string? EntityDisplayName { get; set; }
     public Guid EntityId { get; set; }
-    public MMS.Domain.Enums.AuditAction Action { get; set; }
+    public AuditAction Action { get; set; }
     public string? OldValueJson { get; set; }
     public string? NewValueJson { get; set; }
     public Guid? CorrelationId { get; set; }
