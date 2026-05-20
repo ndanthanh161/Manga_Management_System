@@ -15,6 +15,10 @@ public interface IUnitOfWork : IDisposable
     IChapterRepository Chapters { get; }
     IPageRepository Pages { get; }
     IAuditLogRepository AuditLogs { get; }
+    IAssistantSalaryRepository AssistantSalaries { get; }
+    IAssistantIncomeRepository AssistantIncomes { get; }
+    IBoardVoteRepository BoardVotes { get; }
+    INotificationRepository Notifications { get; }
 
     Task<int> SaveChangesAsync();
 }

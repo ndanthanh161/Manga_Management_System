@@ -10,7 +10,7 @@ public class SeriesMapping : IRegister
     {
         // Series -> SeriesResponse
         config.NewConfig<Series, SeriesResponse>()
-            .Map(dest => dest.AuthorName, src => src.Author != null ? src.Author.Username : string.Empty)
+            .Map(dest => dest.AuthorName, src => src.Author != null ? src.Author.Username : (src.AuthorName ?? string.Empty))
             .Map(dest => dest.Status, src => src.Status.ToString());
 
         // CreateSeriesRequest -> Series

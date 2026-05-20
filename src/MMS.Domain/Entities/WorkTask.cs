@@ -22,4 +22,5 @@ public class WorkTask
     public string? ResultFileUrl { get; set; }
     public string? ResultNote { get; set; }
     public DateTime? CompletedAt { get; set; }
+    public decimal Reward { get; set; } = 0;
 }

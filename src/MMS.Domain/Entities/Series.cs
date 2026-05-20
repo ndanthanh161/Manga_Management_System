@@ -9,12 +9,18 @@ public class Series
     public string? AlternativeTitle { get; set; }
     public string Description { get; set; } = string.Empty;
     public string? CoverImageUrl { get; set; }
-    public SeriesStatus Status { get; set; } = SeriesStatus.Ongoing; // Use Enum
+    public SeriesStatus Status { get; set; } = SeriesStatus.Draft; // Use Enum
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
-    public Guid AuthorId { get; set; }
-    public User Author { get; set; } = null!;
+    public string? AuthorEmail { get; set; }
+    public string? AuthorName { get; set; }
+
+    public Guid? AuthorId { get; set; }
+    public User? Author { get; set; }
+
+    public Guid? TantouEditorId { get; set; }
+    public User? TantouEditor { get; set; }
 
     public ICollection<Chapter> Chapters { get; set; } = new List<Chapter>();
     public ICollection<ReaderVote> ReaderVotes { get; set; } = new List<ReaderVote>();

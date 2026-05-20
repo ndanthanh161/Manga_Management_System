@@ -17,6 +17,7 @@ public record TaskResponse(
     string? ResourceUrl,
     string? ResultFileUrl,
     string? ResultNote,
+    decimal Reward,
     DateTime? CompletedAt,
     DateTime CreatedAt
 );

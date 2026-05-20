@@ -111,12 +111,15 @@ public class TaskService : ITaskService
 
     public async Task<IEnumerable<MonthlyIncomeStats>> GetMonthlyIncomeStatsAsync(Guid assistantId)
     {
-        var assistant = await _uow.Users.GetByIdAsync(assistantId);
-        decimal baseSalary = assistant?.BaseSalary ?? 0;
+        var assistant = await _uow.Users.GetByIdAsync(assistantId)
+            ?? throw new KeyNotFoundException($"Assistant {assistantId} not found.");
+
+        var salaryConfig = (await _uow.AssistantSalaries.FindAsync(s => s.AssistantId == assistantId)).FirstOrDefault();
+        decimal baseSalary = salaryConfig?.BaseSalary ?? 0;
 
         var tasks = await _uow.Tasks.GetByAssignedUserIdAsync(assistantId);
 
-        var stats = tasks
+        var statsList = tasks
             .Where(t => t.Status == WorkTaskStatus.Done && t.CompletedAt.HasValue)
             .GroupBy(t => new { t.CompletedAt!.Value.Year, t.CompletedAt!.Value.Month })
             .Select(g => {
@@ -141,6 +144,42 @@ public class TaskService : ITaskService
             .ThenByDescending(s => s.Month)
             .ToList();
 
-        return stats;
+        // PERSIST / UPDATE into AssistantIncomes table
+        foreach (var stat in statsList)
+        {
+            var income = (await _uow.AssistantIncomes.FindAsync(i => i.AssistantId == assistantId && i.Year == stat.Year && i.Month == stat.Month)).FirstOrDefault();
+            if (income == null)
+            {
+                income = new AssistantIncome
+                {
+                    Id = Guid.NewGuid(),
+                    AssistantId = assistantId,
+                    Year = stat.Year,
+                    Month = stat.Month,
+                    BaseSalary = stat.BaseSalary,
+                    OnTimeTasksCount = stat.OnTimeTasksCount,
+                    TotalTasksCount = stat.TotalTasksCount,
+                    PerformanceRate = stat.PerformanceRate,
+                    PerformanceBonus = stat.PerformanceBonus,
+                    TotalIncome = stat.TotalIncome,
+                    CalculatedAt = DateTime.UtcNow
+                };
+                await _uow.AssistantIncomes.AddAsync(income);
+            }
+            else
+            {
+                income.BaseSalary = stat.BaseSalary;
+                income.OnTimeTasksCount = stat.OnTimeTasksCount;
+                income.TotalTasksCount = stat.TotalTasksCount;
+                income.PerformanceRate = stat.PerformanceRate;
+                income.PerformanceBonus = stat.PerformanceBonus;
+                income.TotalIncome = stat.TotalIncome;
+                income.CalculatedAt = DateTime.UtcNow;
+                _uow.AssistantIncomes.Update(income);
+            }
+        }
+        await _uow.SaveChangesAsync();
+
+        return statsList;
     }
 }

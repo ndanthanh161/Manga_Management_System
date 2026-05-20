@@ -15,8 +15,8 @@ public class Submission
     public Series Series { get; set; } = null!;
 
     // Mangaka nộp
-    public Guid MangakaId { get; set; }
-    public User Mangaka { get; set; } = null!;
+    public Guid? MangakaId { get; set; }
+    public User? Mangaka { get; set; }
 
     public ICollection<BoardVote> Votes { get; set; } = new List<BoardVote>();
     public ICollection<Manuscript> Manuscripts { get; set; } = new List<Manuscript>();

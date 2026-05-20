@@ -13,4 +13,11 @@ internal static class GraphQLHelper
             ?? throw new UnauthorizedAccessException("Yêu cầu đăng nhập.");
         return Guid.Parse(id);
     }
+
+    public static Guid? GetCurrentUserIdOptional(ClaimsPrincipal principal)
+    {
+        var id = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(id)) return null;
+        return Guid.Parse(id);
+    }
 }

@@ -27,6 +27,8 @@ public class MmsDbContext : DbContext
     public DbSet<Ranking> Rankings { get; set; } = null!;
     public DbSet<ReaderVote> ReaderVotes { get; set; } = null!;
     public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+    public DbSet<AssistantSalary> AssistantSalaries { get; set; } = null!;
+    public DbSet<AssistantIncome> AssistantIncomes { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -41,8 +43,15 @@ public class MmsDbContext : DbContext
         // User relationships
         modelBuilder.Entity<User>()
             .HasMany(u => u.Series)
-            .WithOne(s => s.Author)
+            .WithOne(s => s.Author!)
             .HasForeignKey(s => s.AuthorId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Series>()
+            .HasOne(s => s.TantouEditor)
+            .WithMany()
+            .HasForeignKey(s => s.TantouEditorId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // Mangaka <-> Assistant self-referencing relationship
@@ -85,6 +94,7 @@ public class MmsDbContext : DbContext
             .HasOne(s => s.Mangaka)
             .WithMany()
             .HasForeignKey(s => s.MangakaId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 
         // Submission -> Votes
@@ -128,6 +138,11 @@ public class MmsDbContext : DbContext
             .HasForeignKey(t => t.RegionId)
             .OnDelete(DeleteBehavior.SetNull);
 
+        modelBuilder.Entity<WorkTask>()
+            .Property(t => t.Reward)
+            .HasColumnType("decimal(18,2)")
+            .HasDefaultValue(0);
+
         // ReaderVote -> Series
         modelBuilder.Entity<ReaderVote>()
             .HasOne(v => v.Series)
@@ -135,11 +150,41 @@ public class MmsDbContext : DbContext
             .HasForeignKey(v => v.SeriesId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // AssistantSalary mappings
+        modelBuilder.Entity<AssistantSalary>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasOne(e => e.Assistant)
+                .WithOne(u => u.SalaryConfig)
+                .HasForeignKey<AssistantSalary>(e => e.AssistantId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.Property(e => e.BaseSalary)
+                .HasColumnType("decimal(18,2)")
+                .HasDefaultValue(0);
+            entity.HasIndex(e => e.AssistantId)
+                .IsUnique();
+        });
 
-        modelBuilder.Entity<User>()
-            .Property(u => u.BaseSalary)
-            .HasColumnType("decimal(18,2)")
-            .HasDefaultValue(0);
+        // AssistantIncome mappings
+        modelBuilder.Entity<AssistantIncome>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasOne(e => e.Assistant)
+                .WithMany(u => u.Incomes)
+                .HasForeignKey(e => e.AssistantId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.Property(e => e.BaseSalary)
+                .HasColumnType("decimal(18,2)")
+                .HasDefaultValue(0);
+            entity.Property(e => e.PerformanceBonus)
+                .HasColumnType("decimal(18,2)")
+                .HasDefaultValue(0);
+            entity.Property(e => e.TotalIncome)
+                .HasColumnType("decimal(18,2)")
+                .HasDefaultValue(0);
+            entity.HasIndex(e => new { e.AssistantId, e.Year, e.Month })
+                .IsUnique();
+        });
 
         // --- ENUM TO STRING CONVERSIONS ---
         modelBuilder.Entity<WorkTask>()

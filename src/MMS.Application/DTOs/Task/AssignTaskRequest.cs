@@ -7,5 +7,6 @@ public record AssignTaskRequest(
     Guid RegionId,
     string Priority,
     DateTime? DueDate,
-    string? ResourceUrl = null
+    string? ResourceUrl = null,
+    decimal Reward = 0
 );

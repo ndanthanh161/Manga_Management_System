@@ -25,4 +25,17 @@ public class SeriesRepository : GenericRepository<Series>, ISeriesRepository
             .Include(s => s.Rankings)
             .FirstOrDefaultAsync(s => s.Id == seriesId);
     }
+
+    public async Task<IEnumerable<Series>> GetAllWithRankingsAndAuthorAsync()
+    {
+        return await _context.Series
+            .Include(s => s.Author)
+            .Include(s => s.Rankings)
+            .ToListAsync();
+    }
+
+    public async Task AddRankingAsync(Ranking ranking)
+    {
+        await _context.Rankings.AddAsync(ranking);
+    }
 }

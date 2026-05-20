@@ -21,6 +21,7 @@ public class User
     public Guid? MangakaId { get; set; }
     public User? Mangaka { get; set; }
     public ICollection<User> Assistants { get; set; } = new List<User>();
-    
-    public decimal BaseSalary { get; set; } = 0;
+
+    public AssistantSalary? SalaryConfig { get; set; }
+    public ICollection<AssistantIncome> Incomes { get; set; } = new List<AssistantIncome>();
 }

@@ -20,7 +20,13 @@ public class UserService : IUserService
     public async Task<Result<IEnumerable<UserDto>>> GetAllUsersAsync()
     {
         var users = await _unitOfWork.Users.GetAllAsync();
-        return Result<IEnumerable<UserDto>>.Success(users.Adapt<IEnumerable<UserDto>>());
+        var dtos = users.Adapt<List<UserDto>>();
+
+        var salaries = await _unitOfWork.AssistantSalaries.GetAllAsync();
+        var salaryMap = salaries.ToDictionary(s => s.AssistantId, s => s.BaseSalary);
+
+        var updatedDtos = dtos.Select(d => d with { BaseSalary = salaryMap.TryGetValue(d.Id, out var val) ? val : 0 }).ToList();
+        return Result<IEnumerable<UserDto>>.Success(updatedDtos);
     }
 
     public async Task<Result<UserDto>> GetUserByIdAsync(Guid id)
@@ -28,7 +34,10 @@ public class UserService : IUserService
         var user = await _unitOfWork.Users.GetUserWithRolesAsync(id);
         if (user == null) return Result<UserDto>.NotFound("USER_NOT_FOUND", "User not found");
 
-        return Result<UserDto>.Success(user.Adapt<UserDto>());
+        var salary = (await _unitOfWork.AssistantSalaries.FindAsync(s => s.AssistantId == id)).FirstOrDefault();
+        var dto = user.Adapt<UserDto>() with { BaseSalary = salary?.BaseSalary ?? 0 };
+
+        return Result<UserDto>.Success(dto);
     }
 
     public async Task<Result<UserDto>> CreateUserAsync(CreateUserRequest request)
@@ -86,7 +95,13 @@ public class UserService : IUserService
     public async Task<Result<IEnumerable<UserDto>>> GetAssistantsByMangakaAsync(Guid mangakaId)
     {
         var assistants = await _unitOfWork.Users.GetAssistantsByMangakaAsync(mangakaId);
-        return Result<IEnumerable<UserDto>>.Success(assistants.Adapt<IEnumerable<UserDto>>());
+        var dtos = assistants.Adapt<List<UserDto>>();
+
+        var salaries = await _unitOfWork.AssistantSalaries.GetAllAsync();
+        var salaryMap = salaries.ToDictionary(s => s.AssistantId, s => s.BaseSalary);
+
+        var updatedDtos = dtos.Select(d => d with { BaseSalary = salaryMap.TryGetValue(d.Id, out var val) ? val : 0 }).ToList();
+        return Result<IEnumerable<UserDto>>.Success(updatedDtos);
     }
 
     public async Task<Result<UserDto>> SetAssistantBaseSalaryAsync(Guid mangakaId, Guid assistantId, decimal baseSalary)
@@ -104,10 +119,27 @@ public class UserService : IUserService
             return Result<UserDto>.Failure("INVALID_SALARY", "Lương cơ bản không được nhỏ hơn 0.");
         }
 
-        assistant.BaseSalary = baseSalary;
-        _unitOfWork.Users.Update(assistant);
+        var salary = (await _unitOfWork.AssistantSalaries.FindAsync(s => s.AssistantId == assistantId)).FirstOrDefault();
+        if (salary == null)
+        {
+            salary = new AssistantSalary
+            {
+                Id = Guid.NewGuid(),
+                AssistantId = assistantId,
+                BaseSalary = baseSalary,
+                UpdatedAt = DateTime.UtcNow
+            };
+            await _unitOfWork.AssistantSalaries.AddAsync(salary);
+        }
+        else
+        {
+            salary.BaseSalary = baseSalary;
+            salary.UpdatedAt = DateTime.UtcNow;
+            _unitOfWork.AssistantSalaries.Update(salary);
+        }
         await _unitOfWork.SaveChangesAsync();
 
-        return Result<UserDto>.Success(assistant.Adapt<UserDto>());
+        var dto = assistant.Adapt<UserDto>() with { BaseSalary = baseSalary };
+        return Result<UserDto>.Success(dto);
     }
 }

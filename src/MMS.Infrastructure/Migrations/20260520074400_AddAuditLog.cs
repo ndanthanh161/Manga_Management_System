@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -11,10 +11,6 @@ namespace MMS.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Payout",
-                table: "Tasks");
-
             migrationBuilder.CreateTable(
                 name: "AuditLogs",
                 columns: table => new
@@ -64,13 +60,6 @@ namespace MMS.Infrastructure.Migrations
         {
             migrationBuilder.DropTable(
                 name: "AuditLogs");
-
-            migrationBuilder.AddColumn<decimal>(
-                name: "Payout",
-                table: "Tasks",
-                type: "decimal(18,2)",
-                nullable: false,
-                defaultValue: 0m);
         }
     }
 }

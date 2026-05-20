@@ -19,6 +19,10 @@ public class UnitOfWork : IUnitOfWork
     private IChapterRepository? _chapters;
     private IPageRepository? _pages;
     private IAuditLogRepository? _auditLogs;
+    private IAssistantSalaryRepository? _assistantSalaries;
+    private IAssistantIncomeRepository? _assistantIncomes;
+    private IBoardVoteRepository? _boardVotes;
+    private INotificationRepository? _notifications;
 
     public UnitOfWork(MmsDbContext context)
     {
@@ -36,6 +40,11 @@ public class UnitOfWork : IUnitOfWork
     public IChapterRepository Chapters => _chapters ??= new ChapterRepository(_context);
     public IPageRepository Pages => _pages ??= new PageRepository(_context);
     public IAuditLogRepository AuditLogs => _auditLogs ??= new AuditLogRepository(_context);
+    public IAssistantSalaryRepository AssistantSalaries => _assistantSalaries ??= new AssistantSalaryRepository(_context);
+    public IAssistantIncomeRepository AssistantIncomes => _assistantIncomes ??= new AssistantIncomeRepository(_context);
+    public IBoardVoteRepository BoardVotes => _boardVotes ??= new BoardVoteRepository(_context);
+    public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_context);
+
 
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
 

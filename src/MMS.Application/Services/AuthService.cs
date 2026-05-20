@@ -55,6 +55,35 @@ public class AuthService : IAuthService
 
     public async Task<Result<UserInviteDto>> InviteUserAsync(InviteRequest request, Guid currentUserId)
     {
+        var invitingUser = await _unitOfWork.Users.GetUserWithRolesAsync(currentUserId);
+        if (invitingUser == null)
+        {
+            return Result<UserInviteDto>.Failure("USER_NOT_FOUND", "Inviting user not found", 404);
+        }
+
+        var invitingUserRoles = invitingUser.Roles.Select(r => r.Name).ToList();
+
+        if (request.RoleName.Equals("Mangaka", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!invitingUserRoles.Contains("Admin") && 
+                !invitingUserRoles.Contains("Editor") && 
+                !invitingUserRoles.Contains("EditorialBoard"))
+            {
+                return Result<UserInviteDto>.Failure("FORBIDDEN", "Bạn không có quyền mời Mangaka. Chỉ Admin hoặc Editor mới có quyền này.", 403);
+            }
+        }
+        else if (request.RoleName.Equals("Assistant", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!invitingUserRoles.Contains("Mangaka"))
+            {
+                return Result<UserInviteDto>.Failure("FORBIDDEN", "Bạn không có quyền mời Trợ lý. Chỉ Mangaka mới có quyền này.", 403);
+            }
+        }
+        else
+        {
+            return Result<UserInviteDto>.Failure("INVALID_ROLE", $"Vai trò '{request.RoleName}' không được hỗ trợ mời qua email.", 400);
+        }
+
         var invite = await _unitOfWork.Invites.CreateInvitationAsync(
             request.Email, 
             request.RoleName, 
@@ -76,12 +105,46 @@ public class AuthService : IAuthService
 
         var passwordHash = _passwordHasher.Hash(request.Password);
         
-        var user = await _unitOfWork.Users.ProcessInviteRegistrationAsync(
-            invite.Email, 
-            request.Username, 
-            passwordHash, 
-            invite.RoleName,
-            invite.InvitedById);
+        var existingUser = await _unitOfWork.Users.GetByEmailAsync(invite.Email);
+        User user;
+        if (existingUser != null)
+        {
+            user = existingUser;
+            user.PasswordHash = passwordHash;
+            _unitOfWork.Users.Update(user);
+
+            var rolesList = (await _unitOfWork.Roles.FindAsync(r => r.Name == invite.RoleName)).ToList();
+            if (rolesList.Any())
+            {
+                var roleToAdd = rolesList.First();
+                var userWithRoles = await _unitOfWork.Users.GetUserWithRolesAsync(user.Id);
+                if (userWithRoles != null && !userWithRoles.Roles.Any(r => r.Name == invite.RoleName))
+                {
+                    userWithRoles.Roles.Add(roleToAdd);
+                    _unitOfWork.Users.Update(userWithRoles);
+                }
+            }
+        }
+        else
+        {
+            user = await _unitOfWork.Users.ProcessInviteRegistrationAsync(
+                invite.Email, 
+                request.Username, 
+                passwordHash, 
+                invite.RoleName,
+                invite.InvitedById);
+        }
+
+        // Đồng bộ hóa tác phẩm (nếu là Mangaka)
+        if (invite.RoleName.Equals("Mangaka", StringComparison.OrdinalIgnoreCase))
+        {
+            var unassociatedSeries = await _unitOfWork.Series.FindAsync(s => s.AuthorEmail == invite.Email);
+            foreach (var series in unassociatedSeries)
+            {
+                series.AuthorId = user.Id;
+                _unitOfWork.Series.Update(series);
+            }
+        }
 
         await _unitOfWork.Invites.MarkAsUsedAsync(invite.Token);
         await _unitOfWork.SaveChangesAsync();
