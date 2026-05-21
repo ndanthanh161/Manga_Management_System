@@ -2,6 +2,7 @@ using MMS.Application.DTOs.Series;
 using MMS.Application.Interfaces.Services;
 using System.Security.Claims;
 using HotChocolate.Authorization;
+using MMS.API.Authorization;
 
 namespace MMS.API.GraphQL;
 
@@ -17,7 +18,7 @@ public class SeriesMutations
         return await seriesService.CreateAsync(mangakaId, input);
     }
 
-    [Authorize]
+    [Authorize(Policy = PolicyNames.CanManageSeries)]
     public async Task<SeriesResponse> UpdateSeries(
         [Service] ISeriesService seriesService,
         ClaimsPrincipal claimsPrincipal,

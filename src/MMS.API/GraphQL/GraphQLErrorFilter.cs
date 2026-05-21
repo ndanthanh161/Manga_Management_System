@@ -6,10 +6,6 @@ namespace MMS.API.GraphQL;
 
 public class GraphQLErrorFilter : IErrorFilter
 {
-    private readonly ILogger<GraphQLErrorFilter> _logger;
-
-    public GraphQLErrorFilter(ILogger<GraphQLErrorFilter> logger) => _logger = logger;
-
     public IError OnError(IError error)
     {
         if (error.Exception is null) return error;
@@ -19,7 +15,8 @@ public class GraphQLErrorFilter : IErrorFilter
                    
         var message = error.Exception is DomainException ? error.Exception.Message : "An internal error occurred";
 
-        _logger.LogError(error.Exception, "GraphQL error: {Code}", code);
+        // Ghi log ra console thay vì dùng ILogger để tránh lỗi DI từ HotChocolate
+        Console.WriteLine($"[GraphQL Error] Code: {code} | Exception: {error.Exception.Message}");
 
         return ErrorBuilder.FromError(error)
             .SetMessage(message)

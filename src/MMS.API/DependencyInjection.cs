@@ -1,7 +1,11 @@
 using HotChocolate.Execution.Configuration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using MMS.API.Authorization;
+using MMS.API.Authorization.Handlers;
+using MMS.API.Authorization.Requirements;
 using MMS.API.GraphQL;
 using System.Text;
 
@@ -31,7 +35,29 @@ public static class DependencyInjection
                 };
             });
 
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            // Policy đơn giản: chỉ check role
+            options.AddPolicy(PolicyNames.IsTantou, policy =>
+                policy.RequireRole("Tantou Editor"));
+
+            options.AddPolicy(PolicyNames.IsBoardMember, policy =>
+                policy.RequireRole("Editorial Board"));
+            // Policy phức tạp: check role + resource ownership
+            // (dùng với IAuthorizationService.AuthorizeAsync(user, resource, policy))
+            options.AddPolicy(PolicyNames.CanReviewSubmission, policy =>
+                policy.AddRequirements(new TantouAssignmentRequirement()));
+
+            options.AddPolicy(PolicyNames.CanManageSeries, policy =>
+                policy.AddRequirements(new SeriesOwnershipRequirement()));
+
+            options.AddPolicy(PolicyNames.CanVoteInSession, policy =>
+                policy.AddRequirements(new BoardMemberRequirement()));
+        });
+
+        services.AddScoped<IAuthorizationHandler, TantouAssignmentHandler>();
+        services.AddScoped<IAuthorizationHandler, BoardMemberHandler>();
+        services.AddScoped<IAuthorizationHandler, SeriesOwnershipHandler>();
         services.AddHttpContextAccessor();
 
         return services;
