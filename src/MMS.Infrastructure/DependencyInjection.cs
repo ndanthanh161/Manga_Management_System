@@ -5,6 +5,7 @@ using MMS.Application.Interfaces;
 using MMS.Application.Interfaces.Repositories;
 using MMS.Application.Interfaces.Services;
 using MMS.Infrastructure.Data;
+using MMS.Infrastructure.gRPC;
 using MMS.Infrastructure.Repositories;
 using MMS.Infrastructure.Services;
 
@@ -34,6 +35,9 @@ public static class DependencyInjection
         services.AddScoped<IJwtProvider, JwtProvider>();
         services.AddScoped<ICacheService, CacheService>();
         services.AddScoped<IEmailService, EmailService>();
+
+        // 4. gRPC Clients (Phase 2+)
+        services.AddMmsGrpcClients(configuration);
 
         return services;
     }

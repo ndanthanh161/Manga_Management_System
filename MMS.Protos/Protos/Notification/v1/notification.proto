@@ -1,0 +1,37 @@
+syntax = "proto3";
+package mms.notification.v1;
+option csharp_namespace = "MMS.Protos.Notification.V1";
+
+import "google/protobuf/timestamp.proto";
+
+service NotificationService {
+  rpc SendOne(SendNotificationRequest) returns (SendNotificationResponse);
+  rpc FanOut(FanOutRequest) returns (stream DeliveryStatus);
+}
+
+message SendNotificationRequest {
+  string recipient_user_id = 1;
+  string title = 2;
+  string body = 3;
+  string channel = 4;  // "in_app", "email", "push"
+  map<string, string> metadata = 5;
+}
+
+message SendNotificationResponse {
+  string notification_id = 1;
+  bool success = 2;
+}
+
+message FanOutRequest {
+  repeated string recipient_user_ids = 1;
+  string title = 2;
+  string body = 3;
+  string channel = 4;
+}
+
+message DeliveryStatus {
+  string recipient_user_id = 1;
+  string notification_id = 2;
+  bool delivered = 3;
+  google.protobuf.Timestamp delivered_at = 4;
+}

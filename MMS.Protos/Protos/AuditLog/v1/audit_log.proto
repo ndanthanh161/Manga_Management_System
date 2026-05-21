@@ -1,0 +1,40 @@
+syntax = "proto3";
+package mms.audit_log.v1;
+option csharp_namespace = "MMS.Protos.AuditLog.V1";
+
+import "google/protobuf/timestamp.proto";
+
+service AuditLogService {
+  rpc WriteStream(stream AuditEntry) returns (WriteAck);
+  rpc Query(AuditQueryRequest) returns (AuditQueryResponse);
+}
+
+message AuditEntry {
+  string actor_user_id = 1;
+  string entity_name = 2;
+  string entity_id = 3;
+  string action = 4;
+  optional string old_value_json = 5;
+  optional string new_value_json = 6;
+  string correlation_id = 7;
+  google.protobuf.Timestamp occurred_at = 8;
+  optional string ip_address = 9;
+}
+
+message WriteAck {
+  int32 entries_written = 1;
+  bool success = 2;
+}
+
+message AuditQueryRequest {
+  optional string entity_name = 1;
+  optional string entity_id = 2;
+  optional string actor_user_id = 3;
+  int32 page = 4;
+  int32 page_size = 5;
+}
+
+message AuditQueryResponse {
+  repeated AuditEntry entries = 1;
+  int32 total_count = 2;
+}

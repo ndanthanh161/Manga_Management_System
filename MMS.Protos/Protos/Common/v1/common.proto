@@ -1,0 +1,21 @@
+syntax = "proto3";
+package mms.common.v1;
+option csharp_namespace = "MMS.Protos.Common.V1";
+
+import "google/protobuf/timestamp.proto";
+
+message UserRef {
+  string user_id = 1;    // Guid dạng string
+  string display_name = 2;
+}
+
+message PaginationRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+message ErrorDetail {
+  string code = 1;
+  string message = 2;
+  map<string, string> metadata = 3;
+}
