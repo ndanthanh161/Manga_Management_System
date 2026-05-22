@@ -9,4 +9,5 @@ public interface ISeriesService
     Task<IEnumerable<SeriesRankingResponse>> GetRankingsAsync(Guid seriesId);
     Task<SeriesRankingResponse> AddRankingAsync(Guid seriesId, int position, string period);
     Task CheckSurvivalAlertsAsync();
+    Task<bool> CanUserManageSeriesAsync(Guid seriesId, Guid userId);
 }

@@ -373,11 +373,23 @@ namespace MMS.Infrastructure.Migrations
                     b.Property<Guid>("ChapterId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CloudinaryPublicId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("int");
+
                     b.Property<string>("ImageUrl")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("PageNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Width")
                         .HasColumnType("int");
 
                     b.HasKey("Id");

@@ -1,6 +1,9 @@
+using CloudinaryDotNet;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using MMS.Application.Interfaces;
 using MMS.Application.Interfaces.Repositories;
 using MMS.Application.Interfaces.Services;
@@ -8,6 +11,7 @@ using MMS.Infrastructure.Data;
 using MMS.Infrastructure.gRPC;
 using MMS.Infrastructure.Repositories;
 using MMS.Infrastructure.Services;
+using MMS.Infrastructure.Services.Storage;
 
 namespace MMS.Infrastructure;
 
@@ -38,6 +42,15 @@ public static class DependencyInjection
 
         // 4. gRPC Clients (Phase 2+)
         services.AddMmsGrpcClients(configuration);
+
+        // 5. Image Storage (Cloudinary)
+        services.Configure<CloudinaryOptions>(configuration.GetSection(CloudinaryOptions.SectionName));
+        services.AddSingleton(sp => {
+            var opts = sp.GetRequiredService<IOptions<CloudinaryOptions>>().Value;
+            return new Cloudinary(new Account(opts.CloudName, opts.ApiKey, opts.ApiSecret));
+        });
+        services.AddScoped<IImageStorageService, CloudinaryImageStorageService>();
+        services.AddSingleton<IFileValidator, FileValidator>();
 
         return services;
     }

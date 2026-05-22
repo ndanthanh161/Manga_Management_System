@@ -188,4 +188,12 @@ public class SeriesService : ISeriesService
             await _uow.SaveChangesAsync();
         }
     }
+
+    public async Task<bool> CanUserManageSeriesAsync(Guid seriesId, Guid userId)
+    {
+        var series = await _uow.Series.GetByIdAsync(seriesId);
+        if (series == null) return false;
+
+        return series.AuthorId == userId || series.TantouEditorId == userId;
+    }
 }
