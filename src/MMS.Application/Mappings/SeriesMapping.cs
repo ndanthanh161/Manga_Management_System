@@ -1,6 +1,9 @@
 using Mapster;
+using MMS.Application.DTOs.ImageFile;
+using MMS.Application.DTOs.Series;
 using MMS.Domain.Entities;
 using MMS.Domain.Enums;
+using System;
 
 namespace MMS.Application.Mappings;
 
@@ -18,22 +21,52 @@ public class SeriesMapping : IRegister
             .Map(dest => dest.Id, src => Guid.NewGuid())
             .Map(dest => dest.Status, src => SeriesStatus.Ongoing)
             .Map(dest => dest.CreatedAt, src => DateTime.UtcNow)
-            .Ignore(dest => dest.Author)
+            .Ignore(dest => dest.Author!)
             .Ignore(dest => dest.Chapters)
             .Ignore(dest => dest.ReaderVotes)
             .Ignore(dest => dest.Rankings);
-            // AuthorId KHÔNG map được — là runtime value từ JWT token, phải set ở service
+
+        // Tuple (CreateSeriesRequest, UploadedImageDto, Guid?) -> Series
+        config.NewConfig<(CreateSeriesRequest Request, UploadedImageDto Cover, Guid? MangakaId), Series>()
+            .Map(dest => dest.Id, src => Guid.NewGuid())
+            .Map(dest => dest.Title, src => src.Request.Title)
+            .Map(dest => dest.AlternativeTitle, src => src.Request.AlternativeTitle)
+            .Map(dest => dest.Description, src => src.Request.Description)
+            .Map(dest => dest.CoverImageUrl, src => src.Cover.SecureUrl)
+            .Map(dest => dest.CreatedAt, src => DateTime.UtcNow)
+            .Map(dest => dest.AuthorId, src => src.MangakaId.HasValue && src.MangakaId.Value != Guid.Empty ? src.MangakaId : null)
+            .Map(dest => dest.Status, src => src.MangakaId.HasValue && src.MangakaId.Value != Guid.Empty ? SeriesStatus.Ongoing : SeriesStatus.Draft)
+            .Map(dest => dest.AuthorEmail, src => src.MangakaId.HasValue && src.MangakaId.Value != Guid.Empty ? null : src.Request.AuthorEmail)
+            .Map(dest => dest.AuthorName, src => src.MangakaId.HasValue && src.MangakaId.Value != Guid.Empty ? null : src.Request.AuthorName)
+            .Ignore(dest => dest.Author!)
+            .Ignore(dest => dest.Chapters)
+            .Ignore(dest => dest.ReaderVotes)
+            .Ignore(dest => dest.Rankings);
 
         // UpdateSeriesRequest -> Series (partial update - bỏ qua null)
         config.NewConfig<UpdateSeriesRequest, Series>()
             .IgnoreNullValues(true)
             .Ignore(dest => dest.Id)
-            .Ignore(dest => dest.Author)
+            .Ignore(dest => dest.Author!)
             .Ignore(dest => dest.Chapters)
             .Ignore(dest => dest.ReaderVotes)
             .Ignore(dest => dest.Rankings)
-            .Ignore(dest => dest.AuthorId)
+            .Ignore(dest => dest.AuthorId!)
             .Map(dest => dest.UpdatedAt, src => DateTime.UtcNow);
+
+        // UploadedImageDto -> Series (Cập nhật ảnh bìa mới và thời gian)
+        config.NewConfig<UploadedImageDto, Series>()
+            .Map(dest => dest.CoverImageUrl, src => src.SecureUrl)
+            .Map(dest => dest.UpdatedAt, src => DateTime.UtcNow)
+            .Ignore(dest => dest.Id)
+            .Ignore(dest => dest.Title)
+            .Ignore(dest => dest.AlternativeTitle!)
+            .Ignore(dest => dest.Description)
+            .Ignore(dest => dest.Author!)
+            .Ignore(dest => dest.Chapters)
+            .Ignore(dest => dest.ReaderVotes)
+            .Ignore(dest => dest.Rankings)
+            .Ignore(dest => dest.AuthorId!);
 
         // Ranking -> SeriesRankingResponse
         config.NewConfig<Ranking, SeriesRankingResponse>()

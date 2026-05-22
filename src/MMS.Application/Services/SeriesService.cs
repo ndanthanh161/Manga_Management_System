@@ -1,8 +1,16 @@
 using Mapster;
+using MMS.Application.Common;
+using MMS.Application.DTOs.Series;
 using MMS.Application.Interfaces;
 using MMS.Application.Interfaces.Services;
 using MMS.Domain.Entities;
 using MMS.Domain.Enums;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace MMS.Application.Services;
 
@@ -10,36 +18,96 @@ public class SeriesService : ISeriesService
 {
     private readonly IUnitOfWork _uow;
     private readonly IEmailService _emailService;
+    private readonly IImageStorageService _imageStorage;
+    private readonly IFileValidator _fileValidator;
 
-    public SeriesService(IUnitOfWork uow, IEmailService emailService)
+    public SeriesService(IUnitOfWork uow, IEmailService emailService, IImageStorageService imageStorage, IFileValidator fileValidator)
     {
         _uow = uow;
         _emailService = emailService;
+        _imageStorage = imageStorage;
+        _fileValidator = fileValidator;
     }
 
-    public async Task<SeriesResponse> CreateAsync(Guid? mangakaId, CreateSeriesRequest request)
+    public async Task<Result<SeriesResponse>> CreateSeriesWithCoverAsync(Guid? mangakaId, CreateSeriesWithCoverRequest request, CancellationToken ct = default)
     {
-        var series = request.Adapt<Series>();
-        
-        if (mangakaId.HasValue && mangakaId.Value != Guid.Empty)
-        {
-            series.AuthorId = mangakaId;
-            series.Status = SeriesStatus.Ongoing;
-        }
-        else
-        {
-            series.AuthorId = null;
-            series.Status = SeriesStatus.Draft;
-            series.AuthorEmail = request.AuthorEmail;
-            series.AuthorName = request.AuthorName;
-        }
+        if (request.File == null || request.File.Length == 0)
+            return Result<SeriesResponse>.Failure("FILE_EMPTY", "File is empty.");
 
-        await _uow.Series.AddAsync(series);
-        await _uow.SaveChangesAsync();
+        var validationResult = await _fileValidator.ValidateImageAsync(request.File.OpenReadStream(), request.File.FileName, 10);
+        if (!validationResult.Succeeded)
+            return Result<SeriesResponse>.Failure(validationResult.ErrorCode ?? "VALIDATION_FAILED", validationResult.Message ?? "File validation failed.");
 
-        // Reload kèm Author để Adapt đúng AuthorName
-        var created = await _uow.Series.GetWithRankingsAsync(series.Id);
-        return created!.Adapt<SeriesResponse>();
+        var createRequest = request.Adapt<CreateSeriesRequest>();
+        using var stream = request.File.OpenReadStream();
+        try
+        {
+            var series = await CreateWithCoverAsync(mangakaId, createRequest, stream, ct);
+            return Result<SeriesResponse>.Success(series);
+        }
+        catch (Exception ex)
+        {
+            return Result<SeriesResponse>.Failure("CREATE_ERROR", ex.Message);
+        }
+    }
+
+    public async Task<Result<SeriesResponse>> UpdateSeriesWithCoverAsync(Guid seriesId, Guid mangakaId, UpdateSeriesWithCoverRequest request, CancellationToken ct = default)
+    {
+        if (request.File == null || request.File.Length == 0)
+            return Result<SeriesResponse>.Failure("FILE_EMPTY", "File is empty.");
+
+        var validationResult = await _fileValidator.ValidateImageAsync(request.File.OpenReadStream(), request.File.FileName, 10);
+        if (!validationResult.Succeeded)
+            return Result<SeriesResponse>.Failure(validationResult.ErrorCode ?? "VALIDATION_FAILED", validationResult.Message ?? "File validation failed.");
+
+        var updateRequest = request.Adapt<UpdateSeriesRequest>();
+        using var stream = request.File.OpenReadStream();
+        try
+        {
+            var series = await UpdateWithCoverAsync(seriesId, mangakaId, updateRequest, stream, ct);
+            return Result<SeriesResponse>.Success(series);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Result<SeriesResponse>.NotFound("SERIES_NOT_FOUND", ex.Message);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Result<SeriesResponse>.Forbidden("FORBIDDEN", ex.Message);
+        }
+        catch (Exception ex)
+        {
+            return Result<SeriesResponse>.Failure("UPDATE_ERROR", ex.Message);
+        }
+    }
+
+    public async Task<SeriesResponse> CreateWithCoverAsync(
+        Guid? mangakaId, CreateSeriesRequest request, Stream coverStream, CancellationToken ct = default)
+    {
+        // 1. Upload ảnh bìa lên Cloudinary
+        var folder = "mms/series_covers";
+        var hint = $"cover_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+        var uploadResult = await _imageStorage.UploadImageAsync(coverStream, folder, hint, ct);
+
+        if (!uploadResult.Succeeded)
+            throw new InvalidOperationException($"Cover upload failed: {uploadResult.Message}");
+
+        // 2. Tạo Series bằng Mapster (Logic mapping đã được đóng gói 100% trong SeriesMapping.cs)
+        try
+        {
+            var series = (request, uploadResult.Data!, mangakaId).Adapt<Series>();
+
+            await _uow.Series.AddAsync(series);
+            await _uow.SaveChangesAsync();
+
+            var created = await _uow.Series.GetWithRankingsAsync(series.Id);
+            return created!.Adapt<SeriesResponse>();
+        }
+        catch
+        {
+            await _imageStorage.DeleteImageAsync(uploadResult.Data!.PublicId, ct);
+            throw;
+        }
     }
 
     public async Task<SeriesResponse?> GetByIdAsync(Guid id)
@@ -54,7 +122,8 @@ public class SeriesService : ISeriesService
         return list.Adapt<IEnumerable<SeriesResponse>>();
     }
 
-    public async Task<SeriesResponse> UpdateAsync(Guid id, Guid mangakaId, UpdateSeriesRequest request)
+    public async Task<SeriesResponse> UpdateWithCoverAsync(
+        Guid id, Guid mangakaId, UpdateSeriesRequest request, Stream coverStream, CancellationToken ct = default)
     {
         var series = await _uow.Series.GetWithRankingsAsync(id)
             ?? throw new KeyNotFoundException($"Series {id} not found.");
@@ -62,12 +131,33 @@ public class SeriesService : ISeriesService
         if (series.AuthorId != mangakaId)
             throw new UnauthorizedAccessException("Bạn không có quyền chỉnh sửa series này.");
 
-        request.Adapt(series); // IgnoreNullValues(true) — chỉ ghi đè field có giá trị
+        // 1. Upload ảnh bìa mới
+        var folder = $"mms/series_{id}";
+        var hint = $"cover_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+        var uploadResult = await _imageStorage.UploadImageAsync(coverStream, folder, hint, ct);
 
-        _uow.Series.Update(series);
-        await _uow.SaveChangesAsync();
+        if (!uploadResult.Succeeded)
+            throw new InvalidOperationException($"Cover upload failed: {uploadResult.Message}");
 
-        return series.Adapt<SeriesResponse>();
+        // 2. Cập nhật qua Mapster (Logic mapping nằm gọn gàng trong SeriesMapping.cs)
+        try
+        {
+            // A. Cập nhật các thay đổi từ request DTO (bỏ qua null qua config của UpdateSeriesRequest)
+            request.Adapt(series);
+
+            // B. Cập nhật ảnh bìa mới và thời gian thông qua config của UploadedImageDto
+            uploadResult.Data!.Adapt(series);
+
+            _uow.Series.Update(series);
+            await _uow.SaveChangesAsync();
+
+            return series.Adapt<SeriesResponse>();
+        }
+        catch
+        {
+            await _imageStorage.DeleteImageAsync(uploadResult.Data!.PublicId, ct);
+            throw;
+        }
     }
 
     public async Task<IEnumerable<SeriesRankingResponse>> GetRankingsAsync(Guid seriesId)

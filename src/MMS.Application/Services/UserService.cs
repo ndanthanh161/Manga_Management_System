@@ -3,6 +3,12 @@ using MMS.Application.Interfaces;
 using MMS.Application.Interfaces.Services;
 using MMS.Application.Common;
 using MMS.Domain.Entities;
+using MMS.Application.DTOs.User;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace MMS.Application.Services;
 
@@ -10,11 +16,19 @@ public class UserService : IUserService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly IImageStorageService _imageStorageService;
+    private readonly IFileValidator _fileValidator;
 
-    public UserService(IUnitOfWork unitOfWork, IPasswordHasher passwordHasher)
+    public UserService(
+        IUnitOfWork unitOfWork, 
+        IPasswordHasher passwordHasher, 
+        IImageStorageService imageStorageService, 
+        IFileValidator fileValidator)
     {
         _unitOfWork = unitOfWork;
         _passwordHasher = passwordHasher;
+        _imageStorageService = imageStorageService;
+        _fileValidator = fileValidator;
     }
 
     public async Task<Result<IEnumerable<UserDto>>> GetAllUsersAsync()
@@ -141,5 +155,29 @@ public class UserService : IUserService
 
         var dto = assistant.Adapt<UserDto>() with { BaseSalary = baseSalary };
         return Result<UserDto>.Success(dto);
+    }
+
+    public async Task<Result<UploadAvatarResponse>> UploadAvatarAsync(Guid userId, UploadAvatarRequest request, CancellationToken ct = default)
+    {
+        if (request.File == null || request.File.Length == 0)
+            return Result<UploadAvatarResponse>.Failure("FILE_EMPTY", "File is empty.");
+
+        var validationResult = await _fileValidator.ValidateImageAsync(request.File.OpenReadStream(), request.File.FileName, 5);
+        if (!validationResult.Succeeded)
+            return Result<UploadAvatarResponse>.Failure(validationResult.ErrorCode ?? "VALIDATION_FAILED", validationResult.Message ?? "File validation failed.");
+
+        var folder = "mms/avatars";
+        var hint = $"{userId}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+
+        using var stream = request.File.OpenReadStream();
+        var uploadResult = await _imageStorageService.UploadImageAsync(stream, folder, hint, ct);
+
+        if (!uploadResult.Succeeded)
+            return Result<UploadAvatarResponse>.Failure("UPLOAD_FAILED", uploadResult.Message ?? "Upload to Cloudinary failed.", 500);
+
+        var urls = _imageStorageService.BuildAllUrls(uploadResult.Data!.PublicId);
+        
+        var response = new UploadAvatarResponse(uploadResult.Data, urls);
+        return Result<UploadAvatarResponse>.Success(response);
     }
 }

@@ -4,5 +4,9 @@ public record PageResponse(
     Guid Id,
     int PageNumber,
     string ImageUrl,
-    Guid ChapterId
+    Guid ChapterId,
+    string? CloudinaryPublicId,
+    int Width,
+    int Height,
+    long FileSizeBytes
 );

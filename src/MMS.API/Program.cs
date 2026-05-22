@@ -1,10 +1,11 @@
+using Mapster;
+using Microsoft.OpenApi;
 using MMS.API;
 using MMS.API.Middleware;
 using MMS.Application;
 using MMS.Application.Common;
 using MMS.Infrastructure;
 using MMS.Infrastructure.Data;
-using Mapster;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration()
@@ -45,7 +46,37 @@ try
     builder.Services.AddMapster();
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen();
+
+    builder.Services.AddSwaggerGen(options =>
+    {
+        options.SwaggerDoc("v1", new OpenApiInfo
+        {
+            Title = "MMS API",
+            Version = "v1",
+            Description = "Manga Management System API",
+            Contact = new OpenApiContact
+            {
+                Name = "MMS Team"
+            }
+        });
+
+        options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        {
+            Description = "JWT Authorization header using Bearer scheme",
+            Name = "Authorization",
+            In = ParameterLocation.Header,
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer"
+        });
+
+        options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
+        {
+            {
+                new OpenApiSecuritySchemeReference("Bearer", null, null),
+                new List<string>()
+            }
+        });
+    });
 
     var app = builder.Build();
 
@@ -71,7 +102,7 @@ try
     app.UseMiddleware<CorrelationIdMiddleware>();
     app.UseMiddleware<ExceptionMiddleware>();
     app.UseMiddleware<TokenBlacklistMiddleware>();
-    
+
     app.UseHttpsRedirection();
     app.UseAuthentication();
     app.UseAuthorization();
