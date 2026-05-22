@@ -1,8 +1,8 @@
 using MMS.Application.DTOs.User;
-using MMS.Application.Common;
 using MMS.Application.Interfaces.Services;
 using System.Security.Claims;
 using HotChocolate.Authorization;
+using R = MMS.Application.Common;
 
 namespace MMS.API.GraphQL;
 
@@ -16,7 +16,7 @@ public class UserQueries
         return result.Succeeded ? result.Data! : Enumerable.Empty<UserDto>();
     }
 
-    public async Task<MMS.Application.Common.Result<UserDto>> GetUserById([Service] IUserService userService, Guid id)
+    public async Task<R.Result<UserDto>> GetUserById([Service] IUserService userService, Guid id)
     {
         return await userService.GetUserByIdAsync(id);
     }

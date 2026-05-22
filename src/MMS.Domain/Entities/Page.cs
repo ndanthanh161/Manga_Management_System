@@ -9,6 +9,9 @@ public class Page
     public int Width { get; set; }
     public int Height { get; set; }
     public long FileSizeBytes { get; set; }
+    public int Version { get; set; } = 1;
+    public bool IsCurrentVersion { get; set; } = true;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public Guid ChapterId { get; set; }
     public Chapter Chapter { get; set; } = null!;

@@ -14,8 +14,10 @@ public class MmsDbContext : DbContext
     public DbSet<Chapter> Chapters { get; set; } = null!;
     public DbSet<Page> Pages { get; set; } = null!;
     public DbSet<Manuscript> Manuscripts { get; set; } = null!;
+    public DbSet<ManuscriptPageRef> ManuscriptPageRefs { get; set; } = null!;
     public DbSet<Asset> Assets { get; set; } = null!;
     public DbSet<Submission> Submissions { get; set; } = null!;
+    public DbSet<SubmissionTransition> SubmissionTransitions { get; set; } = null!;
     public DbSet<WorkTask> Tasks { get; set; } = null!;
     public DbSet<Region> Regions { get; set; } = null!;
     public DbSet<Notification> Notifications { get; set; } = null!;
@@ -108,12 +110,77 @@ public class MmsDbContext : DbContext
             .HasForeignKey(v => v.SubmissionId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Submission -> Manuscripts
+        // Submission -> Manuscripts (Nullable relationship)
         modelBuilder.Entity<Submission>()
             .HasMany(s => s.Manuscripts)
-            .WithOne(m => m.Submission)
+            .WithOne(m => m.Submission!)
             .HasForeignKey(m => m.SubmissionId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Submission -> AssignedTantou
+        modelBuilder.Entity<Submission>()
+            .HasOne(s => s.AssignedTantou)
+            .WithMany()
+            .HasForeignKey(s => s.AssignedTantouId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // SubmissionTransition configurations
+        modelBuilder.Entity<SubmissionTransition>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne(e => e.Submission)
+                .WithMany(s => s.Transitions)
+                .HasForeignKey(e => e.SubmissionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ActorUser)
+                .WithMany()
+                .HasForeignKey(e => e.ActorUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.Property(e => e.FromStatus)
+                .HasConversion<string>();
+
+            entity.Property(e => e.ToStatus)
+                .HasConversion<string>();
+
+            entity.HasIndex(e => new { e.SubmissionId, e.OccurredAt });
+        });
+
+        // Manuscript self-referencing relationship (Parent version tracking)
+        modelBuilder.Entity<Manuscript>()
+            .HasOne(m => m.ParentManuscript)
+            .WithMany()
+            .HasForeignKey(m => m.ParentManuscriptId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Manuscript -> Chapter relationship
+        modelBuilder.Entity<Manuscript>()
+            .HasOne(m => m.Chapter)
+            .WithMany()
+            .HasForeignKey(m => m.ChapterId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // ManuscriptPageRef snapshot mapping
+        modelBuilder.Entity<ManuscriptPageRef>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasOne(e => e.Manuscript)
+                .WithMany(m => m.PageRefs)
+                .HasForeignKey(e => e.ManuscriptId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.Page)
+                .WithMany()
+                .HasForeignKey(e => e.PageId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Page unique index for versioning (PageNumber per Version in a Chapter must be unique)
+        modelBuilder.Entity<Page>()
+            .HasIndex(p => new { p.ChapterId, p.PageNumber, p.Version })
+            .IsUnique();
 
         // Region -> Page
         modelBuilder.Entity<Region>()

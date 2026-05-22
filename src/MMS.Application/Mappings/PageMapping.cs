@@ -11,6 +11,9 @@ public class PageMapping : IRegister
         config.NewConfig<CreatePageRequest, Page>()
             .Ignore(dest => dest.Id)
             .Ignore(dest => dest.Chapter)
+            .Ignore(dest => dest.Version)
+            .Ignore(dest => dest.IsCurrentVersion)
+            .Ignore(dest => dest.CreatedAt)
             .Ignore(dest => dest.Annotations)
             .Ignore(dest => dest.Comments);
 

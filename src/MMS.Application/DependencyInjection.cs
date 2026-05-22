@@ -20,6 +20,7 @@ public static class DependencyInjection
         services.AddScoped<IAnnotationService, AnnotationService>();
         services.AddScoped<IChapterService, ChapterService>();
         services.AddScoped<IPageService, PageService>();
+        services.AddScoped<IManuscriptService, ManuscriptService>();
 
         return services;
     }

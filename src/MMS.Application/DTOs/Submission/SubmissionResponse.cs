@@ -10,9 +10,13 @@ public record SubmissionResponse(
     string Status,
     Guid SeriesId,
     string SeriesTitle,
-    Guid MangakaId,
+    Guid? MangakaId,
     string MangakaName,
+    Guid? AssignedTantouId,
+    string? AssignedTantouName,
     DateTime SubmittedAt,
+    DateTime? ResolvedAt,
     List<ManuscriptResponse> Manuscripts,
-    List<BoardVoteResponse> Votes
+    List<BoardVoteResponse> Votes,
+    List<SubmissionTransitionResponse> Transitions
 );

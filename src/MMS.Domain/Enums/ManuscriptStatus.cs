@@ -4,5 +4,6 @@ public enum ManuscriptStatus
 {
     Draft,
     Submitted,
+    InReview,
     Published
 }

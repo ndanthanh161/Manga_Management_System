@@ -14,17 +14,20 @@ public class UploadController : ControllerBase
     private readonly IImageStorageService _imageStorageService;
     private readonly IFileValidator _fileValidator;
     private readonly ISeriesService _seriesService;
+    private readonly IPageService _pageService;
     private readonly ILogger<UploadController> _logger;
 
     public UploadController(
         IImageStorageService imageStorageService,
         IFileValidator fileValidator,
         ISeriesService seriesService,
+        IPageService pageService,
         ILogger<UploadController> logger)
     {
         _imageStorageService = imageStorageService;
         _fileValidator = fileValidator;
         _seriesService = seriesService;
+        _pageService = pageService;
         _logger = logger;
     }
 
@@ -41,29 +44,26 @@ public class UploadController : ControllerBase
             return BadRequest("File is empty.");
         }
 
-        var validationResult = await _fileValidator.ValidateImageAsync(file.OpenReadStream(), file.FileName, 20);
-        if (!validationResult.Succeeded)
-        {
-            return BadRequest(validationResult.Message);
-        }
-
-        var folder = $"mms/chapter_{chapterId}";
-        var hint = $"page_{pageNumber}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        var userId = Guid.Parse(userIdStr);
 
         using var stream = file.OpenReadStream();
-        var uploadResult = await _imageStorageService.UploadImageAsync(stream, folder, hint, ct);
+        var result = await _pageService.UploadPageVersionAsync(chapterId, pageNumber, stream, file.FileName, userId, ct);
 
-        if (!uploadResult.Succeeded)
+        if (!result.Succeeded)
         {
-            _logger.LogError("Page upload failed: {Error}", uploadResult.Message);
-            return StatusCode(500, uploadResult.Message);
+            if (result.StatusCode == 404) return NotFound(result.Message);
+            if (result.StatusCode == 403) return Forbid();
+            return BadRequest(result.Message);
         }
 
-        var urls = _imageStorageService.BuildAllUrls(uploadResult.Data!.PublicId);
+        var pageResponse = result.Data!;
+        var urls = _imageStorageService.BuildAllUrls(pageResponse.CloudinaryPublicId ?? "");
 
         return Ok(new
         {
-            upload = uploadResult.Data,
+            page = pageResponse,
             urls = urls
         });
     }

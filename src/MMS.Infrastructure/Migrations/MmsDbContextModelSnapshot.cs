@@ -317,25 +317,65 @@ namespace MMS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid>("ChapterId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsCurrentVersion")
+                        .HasColumnType("bit");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid?>("ParentManuscriptId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<Guid>("SubmissionId")
+                    b.Property<Guid?>("SubmissionId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ChapterId");
+
+                    b.HasIndex("ParentManuscriptId");
 
                     b.HasIndex("SubmissionId");
 
                     b.ToTable("Manuscripts");
+                });
+
+            modelBuilder.Entity("MMS.Domain.Entities.ManuscriptPageRef", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ManuscriptId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PageId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("PageVersion")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ManuscriptId");
+
+                    b.HasIndex("PageId");
+
+                    b.ToTable("ManuscriptPageRefs");
                 });
 
             modelBuilder.Entity("MMS.Domain.Entities.Notification", b =>
@@ -376,6 +416,9 @@ namespace MMS.Infrastructure.Migrations
                     b.Property<string>("CloudinaryPublicId")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<long>("FileSizeBytes")
                         .HasColumnType("bigint");
 
@@ -386,7 +429,13 @@ namespace MMS.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("IsCurrentVersion")
+                        .HasColumnType("bit");
+
                     b.Property<int>("PageNumber")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Version")
                         .HasColumnType("int");
 
                     b.Property<int>("Width")
@@ -394,7 +443,8 @@ namespace MMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ChapterId");
+                    b.HasIndex("ChapterId", "PageNumber", "Version")
+                        .IsUnique();
 
                     b.ToTable("Pages");
                 });
@@ -590,12 +640,18 @@ namespace MMS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("AssignedTantouId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid?>("MangakaId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Note")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<Guid>("SeriesId")
                         .HasColumnType("uniqueidentifier");
@@ -613,11 +669,49 @@ namespace MMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("AssignedTantouId");
+
                     b.HasIndex("MangakaId");
 
                     b.HasIndex("SeriesId");
 
                     b.ToTable("Submissions");
+                });
+
+            modelBuilder.Entity("MMS.Domain.Entities.SubmissionTransition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("FromStatus")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("SubmissionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ToStatus")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("SubmissionId", "OccurredAt");
+
+                    b.ToTable("SubmissionTransitions");
                 });
 
             modelBuilder.Entity("MMS.Domain.Entities.User", b =>
@@ -879,13 +973,46 @@ namespace MMS.Infrastructure.Migrations
 
             modelBuilder.Entity("MMS.Domain.Entities.Manuscript", b =>
                 {
+                    b.HasOne("MMS.Domain.Entities.Chapter", "Chapter")
+                        .WithMany()
+                        .HasForeignKey("ChapterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MMS.Domain.Entities.Manuscript", "ParentManuscript")
+                        .WithMany()
+                        .HasForeignKey("ParentManuscriptId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("MMS.Domain.Entities.Submission", "Submission")
                         .WithMany("Manuscripts")
                         .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Chapter");
+
+                    b.Navigation("ParentManuscript");
+
+                    b.Navigation("Submission");
+                });
+
+            modelBuilder.Entity("MMS.Domain.Entities.ManuscriptPageRef", b =>
+                {
+                    b.HasOne("MMS.Domain.Entities.Manuscript", "Manuscript")
+                        .WithMany("PageRefs")
+                        .HasForeignKey("ManuscriptId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Submission");
+                    b.HasOne("MMS.Domain.Entities.Page", "Page")
+                        .WithMany()
+                        .HasForeignKey("PageId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Manuscript");
+
+                    b.Navigation("Page");
                 });
 
             modelBuilder.Entity("MMS.Domain.Entities.Notification", b =>
@@ -980,6 +1107,11 @@ namespace MMS.Infrastructure.Migrations
 
             modelBuilder.Entity("MMS.Domain.Entities.Submission", b =>
                 {
+                    b.HasOne("MMS.Domain.Entities.User", "AssignedTantou")
+                        .WithMany()
+                        .HasForeignKey("AssignedTantouId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("MMS.Domain.Entities.User", "Mangaka")
                         .WithMany()
                         .HasForeignKey("MangakaId")
@@ -991,9 +1123,30 @@ namespace MMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("AssignedTantou");
+
                     b.Navigation("Mangaka");
 
                     b.Navigation("Series");
+                });
+
+            modelBuilder.Entity("MMS.Domain.Entities.SubmissionTransition", b =>
+                {
+                    b.HasOne("MMS.Domain.Entities.User", "ActorUser")
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MMS.Domain.Entities.Submission", "Submission")
+                        .WithMany("Transitions")
+                        .HasForeignKey("SubmissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ActorUser");
+
+                    b.Navigation("Submission");
                 });
 
             modelBuilder.Entity("MMS.Domain.Entities.User", b =>
@@ -1057,6 +1210,8 @@ namespace MMS.Infrastructure.Migrations
             modelBuilder.Entity("MMS.Domain.Entities.Manuscript", b =>
                 {
                     b.Navigation("Assets");
+
+                    b.Navigation("PageRefs");
                 });
 
             modelBuilder.Entity("MMS.Domain.Entities.Page", b =>
@@ -1083,6 +1238,8 @@ namespace MMS.Infrastructure.Migrations
             modelBuilder.Entity("MMS.Domain.Entities.Submission", b =>
                 {
                     b.Navigation("Manuscripts");
+
+                    b.Navigation("Transitions");
 
                     b.Navigation("Votes");
                 });

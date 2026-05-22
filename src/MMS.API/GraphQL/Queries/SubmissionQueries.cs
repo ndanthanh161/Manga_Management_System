@@ -1,5 +1,8 @@
 using MMS.Application.DTOs.Submission;
 using MMS.Application.Interfaces.Services;
+using MMS.Domain.Enums;
+using System.Security.Claims;
+using HotChocolate.Authorization;
 
 namespace MMS.API.GraphQL;
 
@@ -11,7 +14,8 @@ public class SubmissionQueries
         [Service] ISubmissionService submissionService,
         Guid mangakaId)
     {
-        return await submissionService.GetByMangakaAsync(mangakaId);
+        var result = await submissionService.GetByMangakaAsync(mangakaId);
+        return result.Succeeded ? result.Data! : Enumerable.Empty<SubmissionResponse>();
     }
 
     /// <summary>Xem chi tiết một submission kèm bản thảo và bình chọn</summary>
@@ -19,6 +23,52 @@ public class SubmissionQueries
         [Service] ISubmissionService submissionService,
         Guid id)
     {
-        return await submissionService.GetByIdAsync(id);
+        var result = await submissionService.GetByIdAsync(id);
+        return result.Succeeded ? result.Data : null;
+    }
+
+    /// <summary>Lấy danh sách inbox dựa theo role và status filter của người dùng</summary>
+    [Authorize]
+    public async Task<IEnumerable<SubmissionResponse>> GetSubmissionInbox(
+        [Service] ISubmissionService submissionService,
+        ClaimsPrincipal claimsPrincipal,
+        WorkflowStatus? filter)
+    {
+        var userId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
+        
+        string role = "Mangaka"; // default fallback
+        if (claimsPrincipal.IsInRole("Admin"))
+        {
+            role = "Admin";
+        }
+        else if (claimsPrincipal.IsInRole("EditorialBoard"))
+        {
+            role = "EditorialBoard";
+        }
+        else if (claimsPrincipal.IsInRole("Tantou"))
+        {
+            role = "Tantou";
+        }
+
+        var result = await submissionService.GetInboxAsync(userId, role, filter);
+        if (!result.Succeeded)
+        {
+            throw new Exception(result.Message ?? "Lấy danh sách inbox thất bại.");
+        }
+        return result.Data!;
+    }
+
+    /// <summary>Lấy lịch sử workflow transitions của một bản nộp</summary>
+    [Authorize]
+    public async Task<IEnumerable<SubmissionTransitionResponse>> GetSubmissionWorkflowHistory(
+        [Service] ISubmissionService submissionService,
+        Guid submissionId)
+    {
+        var result = await submissionService.GetWorkflowHistoryAsync(submissionId);
+        if (!result.Succeeded)
+        {
+            throw new Exception(result.Message ?? "Lấy lịch sử workflow thất bại.");
+        }
+        return result.Data!;
     }
 }
