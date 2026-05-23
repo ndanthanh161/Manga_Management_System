@@ -1,4 +1,4 @@
-using Mapster;
+﻿using Mapster;
 using Microsoft.OpenApi;
 using MMS.API;
 using MMS.API.Middleware;
@@ -46,6 +46,17 @@ try
     builder.Services.AddMapster();
     builder.Services.AddControllers();
     builder.Services.AddEndpointsApiExplorer();
+
+    builder.Services.AddCors(options =>
+    {
+        options.AddPolicy("AllowNextJs", policy =>
+        {
+            policy.WithOrigins("http://localhost:3000")
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        });
+    });
 
     builder.Services.AddSwaggerGen(options =>
     {
@@ -104,6 +115,7 @@ try
     app.UseMiddleware<TokenBlacklistMiddleware>();
 
     app.UseHttpsRedirection();
+    app.UseCors("AllowNextJs");
     app.UseAuthentication();
     app.UseAuthorization();
 
