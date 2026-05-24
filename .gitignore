@@ -42,5 +42,4 @@ publish/
 
 ## Ignore auto test scripts & test suite files
 auto_test.ps1
-graphql_test_suite.md
 
