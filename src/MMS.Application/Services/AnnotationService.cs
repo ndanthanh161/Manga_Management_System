@@ -1,4 +1,5 @@
 using Mapster;
+using MMS.Application.Common;
 using MMS.Application.Interfaces;
 using MMS.Application.Interfaces.Services;
 using MMS.Domain.Entities;
@@ -29,9 +30,39 @@ public class AnnotationService : IAnnotationService
         return created.Adapt<AnnotationResponse>();
     }
 
+    public Task<Result<bool>> DeleteAsync(Guid userId, Guid annotationId)
+    {
+        throw new NotImplementedException();
+    }
+
     public async Task<IEnumerable<AnnotationResponse>> GetByPageAsync(Guid pageId)
     {
         var annotations = await _uow.Annotations.GetByPageIdAsync(pageId);
         return annotations.Adapt<IEnumerable<AnnotationResponse>>();
+    }
+
+    public Task<Result<IEnumerable<UnresolvedCountResponse>>> GetUnresolvedCountByChapterAsync(Guid chapterId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<Result<AnnotationResponse>> ResolveAsync(Guid userId, Guid annotationId)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task<Result<AnnotationResponse>> ReviewAsync(Guid userId, Guid annotationId, ReviewAnnotationRequest request)
+    {
+        throw new NotImplementedException();
+    }
+
+    Task<Result<AnnotationResponse>> IAnnotationService.CreateAsync(Guid userId, CreateAnnotationRequest request)
+    {
+        throw new NotImplementedException();
+    }
+
+    Task<Result<IEnumerable<AnnotationResponse>>> IAnnotationService.GetByPageAsync(Guid pageId)
+    {
+        throw new NotImplementedException();
     }
 }

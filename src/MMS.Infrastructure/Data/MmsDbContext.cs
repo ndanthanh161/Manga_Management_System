@@ -299,5 +299,45 @@ public class MmsDbContext : DbContext
             entity.HasIndex(e => e.OccurredAt).IsClustered(false);
         });
 
+        modelBuilder.Entity<Annotation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Content).HasMaxLength(2000).IsRequired();
+            entity.Property(e => e.StrokeData).HasColumnType("nvarchar(max)");
+
+            // Enum -> string conversion
+            entity.Property(e => e.Category).HasConversion<string>().HasMaxLength(32);
+            entity.Property(e => e.Shape).HasConversion<string>().HasMaxLength(32);
+            entity.Property(e => e.Status).HasConversion<string>().HasMaxLength(32);
+
+            // Page relationship — Cascade khi xoá Page
+            entity.HasOne(e => e.Page)
+                .WithMany(p => p.Annotations)
+                .HasForeignKey(e => e.PageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // User (người tạo) — Restrict
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // ResolvedByUser — Restrict
+            entity.HasOne(e => e.ResolvedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.ResolvedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // ClosedByUser — Restrict
+            entity.HasOne(e => e.ClosedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.ClosedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Index để query nhanh
+            entity.HasIndex(e => new { e.PageId, e.Status });
+        });
+
     }
 }
