@@ -1,6 +1,6 @@
 # Hướng Dẫn Chạy Test GraphQL (Manga Management System)
 
-Tài liệu này chứa toàn bộ các câu lệnh GraphQL (Queries & Mutations) đã được tối ưu hóa dạng **inline** và cập nhật theo cơ chế phân quyền mới nhất (đã loại bỏ `payout`).
+Tài liệu này chứa toàn bộ các câu lệnh GraphQL (Queries & Mutations) đã được tối ưu hóa dạng **inline** và cập nhật theo cơ chế phân quyền mới nhất, bao gồm cả các API của Phase 5 & 6.
 
 ---
 
@@ -143,21 +143,30 @@ mutation {
 ```
 *(Lưu lại `id` của Task vừa tạo)*
 
-### Tạo ghi chú lỗi cần sửa trên trang truyện (Annotation):
+### Tạo ghi chú lỗi cần sửa trên trang truyện (Annotation - Đã cập nhật Phase 6):
 ```graphql
 mutation {
   createAnnotation(
     input: {
       pageId: "ĐIỀN_ID_PAGE_VÀO_ĐÂY"
       content: "Chỉnh lại mắt bên phải hơi lệch 5 độ"
+      category: ARTWORK
+      shape: RECTANGLE
       x: 45.5
       y: 60.2
+      width: 10.0
+      height: 10.0
     }
   ) {
     id
     content
+    status
+    category
+    shape
     x
     y
+    width
+    height
     createdAt
   }
 }
@@ -285,15 +294,20 @@ mutation {
 }
 ```
 
-### Tra cứu ghi chú sửa đổi chi tiết trên trang:
+### Tra cứu ghi chú sửa đổi chi tiết trên trang (Đã cập nhật Phase 6):
 *(Thay `pageId` lấy được từ trường `region.pageId` trong thông tin task)*
 ```graphql
 query {
-  getAnnotationsByPage(pageId: "ĐIỀN_ID_PAGE_LẤY_ĐƯỢC_TỪ_TASK_VÀO_ĐÂY") {
+  annotationsByPage(pageId: "ĐIỀN_ID_PAGE_LẤY_ĐƯỢC_TỪ_TASK_VÀO_ĐÂY") {
     id
     content
+    status
+    category
+    shape
     x
     y
+    width
+    height
     userName
     createdAt
   }
@@ -313,5 +327,157 @@ query {
     performanceBonus
     totalIncome
   }
+}
+```
+
+---
+
+## 5. CÁC HOẠT ĐỘNG QUẢN LÝ GÓP Ý & XÉT DUYỆT (PHASE 5 & 6)
+*Lưu ý: Yêu cầu token của role tương ứng: Tantou, Mangaka, EditorialBoard hoặc Assistant.*
+
+### Đánh dấu Annotation đã sửa xong (Role: Mangaka, Assistant)
+```graphql
+mutation ResolveAnnotation {
+  resolveAnnotation(annotationId: "YOUR_ANNOTATION_ID_HERE") {
+    id
+    status
+    content
+    resolvedAt
+    resolvedByUserName
+  }
+}
+```
+
+### Duyệt / Từ chối bản sửa Annotation (Role: Tantou, EditorialBoard)
+
+**Trường hợp 1: Chấp nhận bản sửa (Approve)**
+```graphql
+mutation ApproveAnnotation {
+  reviewAnnotation(
+    annotationId: "YOUR_ANNOTATION_ID_HERE", 
+    request: {
+      isApproved: true
+    }
+  ) {
+    id
+    status
+    closedAt
+    closedByUserName
+  }
+}
+```
+
+**Trường hợp 2: Bắt sửa lại (Reject + Feedback mới)**
+```graphql
+mutation RejectAnnotation {
+  reviewAnnotation(
+    annotationId: "YOUR_ANNOTATION_ID_HERE", 
+    request: {
+      isApproved: false,
+      feedback: "Phần viền môi vẫn bị thô, hãy dùng nét thanh hơn một chút."
+    }
+  ) {
+    id
+    status
+    content # Sẽ nối thêm feedback mới vào nội dung cũ
+    resolvedAt # Được reset lại
+  }
+}
+```
+
+### Đếm số lượng Annotation chưa đóng theo Chapter (Dùng cho Dashboard)
+```graphql
+query GetUnresolvedCount {
+  unresolvedCountByChapter(chapterId: "YOUR_CHAPTER_ID_HERE") {
+    pageId
+    pageNumber
+    unresolvedCount
+  }
+}
+```
+
+### Xoá Annotation (Vai trò: Chính người tạo ra nó)
+*Lưu ý: Chỉ xoá được khi status đang là OPEN.*
+```graphql
+mutation DeleteAnnotation {
+  deleteAnnotation(annotationId: "YOUR_ANNOTATION_ID_HERE")
+}
+```
+
+### Gửi duyệt bản thảo (Submit) (Role: Mangaka)
+```graphql
+mutation SubmitManuscript {
+  submitManuscript(
+    manuscriptId: "YOUR_MANUSCRIPT_ID_HERE"
+    note: "Bản vẽ thô (name) đã hoàn thành, nhờ Tantou duyệt giúp."
+  ) {
+    id
+    workflowStatus
+  }
+}
+```
+
+### Tantou tiếp nhận bản nộp (Accept) (Role: Tantou, Admin, Editor)
+```graphql
+mutation AcceptSubmission {
+  acceptSubmission(submissionId: "YOUR_SUBMISSION_ID_HERE") {
+    id
+    workflowStatus
+  }
+}
+```
+
+### Tantou yêu cầu sửa lại (Return for Revision)
+```graphql
+mutation ReturnForRevision {
+  returnForRevision(
+    submissionId: "YOUR_SUBMISSION_ID_HERE"
+    comment: "Nhịp truyện đoạn giữa còn hơi chậm, cần cắt bớt 1 page."
+  ) {
+    id
+    workflowStatus
+  }
+}
+```
+
+### Tantou chuyển tiếp lên Hội đồng Biên tập (Forward to Board)
+```graphql
+mutation ForwardToBoard {
+  forwardToBoard(
+    submissionId: "YOUR_SUBMISSION_ID_HERE"
+    comment: "Tác phẩm đạt chuẩn kỹ thuật, xin hội đồng duyệt để xuất bản."
+  ) {
+    id
+    workflowStatus
+  }
+}
+```
+
+---
+
+## 6. QUẢN LÝ TÁC PHẨM / SERIES
+
+### Gán thứ hạng mới cho Series (Dùng trong hệ thống Ranking)
+```graphql
+mutation AddSeriesRanking {
+  addSeriesRanking(
+    seriesId: "YOUR_SERIES_ID_HERE"
+    position: 1
+    period: "May 2026 - Week 4"
+  ) {
+    seriesId
+    seriesTitle
+    position
+    period
+    calculatedAt
+  }
+}
+```
+
+### Kích hoạt cảnh báo khai tử (Survival Check)
+*Sẽ tự động quét toàn bộ DB để tìm ra các tác phẩm rớt chót bảng 3 lần liên tiếp và phát cảnh báo.*
+```graphql
+mutation TriggerSurvivalCheck {
+  triggerSurvivalCheck
 }
 ```
