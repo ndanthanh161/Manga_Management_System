@@ -1,5 +1,5 @@
 using MMS.Application.Common;
-
+using MMS.Application.DTOs.Annotation;
 namespace MMS.Application.Interfaces.Services;
 
 public interface IAnnotationService

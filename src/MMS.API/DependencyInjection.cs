@@ -85,7 +85,7 @@ public static class DependencyInjection
             .AddTypeExtension<TaskMutations>()
             .AddTypeExtension<AnnotationMutations>()
             .AddTypeExtension<ChapterMutations>()
-            .AddTypeExtension<PageMutations>()
+            // .AddTypeExtension<PageMutations>()
             .AddTypeExtension<ManuscriptMutations>()
             .AddProjections()
             .AddFiltering()
