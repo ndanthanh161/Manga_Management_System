@@ -1,7 +1,6 @@
 using HotChocolate.Execution.Configuration;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using MMS.API.Authorization;
 using MMS.API.Authorization.Handlers;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -51,6 +51,19 @@ namespace MMS.Infrastructure.Migrations
                 nullable: false,
                 defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
 
+            migrationBuilder.Sql(@"
+                UPDATE m
+                SET m.ChapterId = COALESCE(
+                    (SELECT TOP 1 c.Id 
+                     FROM Chapters c
+                     INNER JOIN Submissions s ON s.SeriesId = c.SeriesId
+                     WHERE s.Id = m.SubmissionId),
+                    (SELECT TOP 1 Id FROM Chapters)
+                )
+                FROM Manuscripts m
+                WHERE m.ChapterId = '00000000-0000-0000-0000-000000000000';
+            ");
+
             migrationBuilder.AddColumn<bool>(
                 name: "IsCurrentVersion",
                 table: "Manuscripts",
@@ -96,6 +109,18 @@ namespace MMS.Infrastructure.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
+
+            migrationBuilder.Sql(@"
+                WITH CTE AS (
+                    SELECT Id,
+                           ROW_NUMBER() OVER (PARTITION BY ChapterId, PageNumber ORDER BY Id) - 1 AS NewVersion
+                    FROM Pages
+                )
+                UPDATE p
+                SET p.Version = c.NewVersion
+                FROM Pages p
+                INNER JOIN CTE c ON p.Id = c.Id;
+            ");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Pages_ChapterId_PageNumber_Version",

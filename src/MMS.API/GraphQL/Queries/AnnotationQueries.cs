@@ -11,6 +11,11 @@ public class AnnotationQueries
         [Service] IAnnotationService annotationService,
         Guid pageId)
     {
-        return await annotationService.GetByPageAsync(pageId);
+        var result = await annotationService.GetByPageAsync(pageId);
+        if (!result.Succeeded)
+        {
+            throw new System.Exception(result.Message ?? "Lấy danh sách ghi chú thất bại.");
+        }
+        return result.Data!;
     }
 }

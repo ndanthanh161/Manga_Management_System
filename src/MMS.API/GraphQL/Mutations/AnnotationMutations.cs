@@ -15,6 +15,11 @@ public class AnnotationMutations
         CreateAnnotationRequest input)
     {
         var userId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
-        return await annotationService.CreateAsync(userId, input);
+        var result = await annotationService.CreateAsync(userId, input);
+        if (!result.Succeeded)
+        {
+            throw new System.Exception(result.Message ?? "Tạo ghi chú thất bại.");
+        }
+        return result.Data!;
     }
 }
