@@ -110,6 +110,32 @@ public class UploadController : ControllerBase
         return Ok(new { upload = uploadResult.Data, urls = urls });
     }
 
+    [HttpPost("series")]
+    [Authorize(Roles = "Mangaka,Admin")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> CreateSeries(
+        [FromForm] CreateSeriesWithCoverRequest request,
+        CancellationToken ct)
+    {
+        if (request.File == null || request.File.Length == 0)
+        {
+            return BadRequest("File is empty.");
+        }
+
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        var userId = Guid.Parse(userIdStr);
+
+        var result = await _seriesService.CreateSeriesWithCoverAsync(userId, request, ct);
+
+        if (!result.Succeeded)
+        {
+            return StatusCode(result.StatusCode, result);
+        }
+
+        return Ok(result);
+    }
+
     [HttpPost("avatar")]
     [Authorize]
     [Consumes("multipart/form-data")]

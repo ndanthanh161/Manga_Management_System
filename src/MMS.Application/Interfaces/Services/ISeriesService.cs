@@ -17,4 +17,5 @@ public interface ISeriesService
 
     Task<Result<SeriesResponse>> CreateSeriesWithCoverAsync(Guid? mangakaId, CreateSeriesWithCoverRequest request, CancellationToken ct = default);
     Task<Result<SeriesResponse>> UpdateSeriesWithCoverAsync(Guid seriesId, Guid mangakaId, UpdateSeriesWithCoverRequest request, CancellationToken ct = default);
+    Task<Result<SeriesResponse>> ReviewSeriesAsync(ReviewSeriesRequest request, Guid adminUserId);
 }

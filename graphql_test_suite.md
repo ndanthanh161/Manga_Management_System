@@ -20,7 +20,6 @@ mutation {
   ) {
     succeeded
     message
-    errors
     data {
       id
       username
@@ -46,7 +45,6 @@ mutation {
   ) {
     succeeded
     message
-    errors
     data {
       id
       username
@@ -64,10 +62,9 @@ mutation {
 ### Đăng nhập Mangaka:
 ```graphql
 mutation {
-  login(request: { email: "mangaka_test", password: "Password123!" }) {
+  login(request: { emailOrUsername: "mangaka_test", password: "Password123!" }) {
     succeeded
     message
-    errors
     data {
       accessToken
       roles
@@ -80,10 +77,9 @@ mutation {
 ### Đăng nhập Assistant:
 ```graphql
 mutation {
-  login(request: { email: "assistant_test", password: "Password123!" }) {
+  login(request: { emailOrUsername: "assistant_test", password: "Password123!" }) {
     succeeded
     message
-    errors
     data {
       accessToken
       roles
@@ -456,6 +452,74 @@ mutation ForwardToBoard {
 ---
 
 ## 6. QUẢN LÝ TÁC PHẨM / SERIES
+
+### Mangaka đăng ký Series mới (REST API - multipart/form-data):
+Sử dụng RESTful API với định dạng `multipart/form-data` để đăng ký bộ truyện mới kèm ảnh bìa:
+- **HTTP Method**: `POST`
+- **Endpoint**: `https://localhost:7129/api/upload/series` (hoặc cổng HTTP tương ứng của bạn)
+- **Headers**: 
+  - `Authorization: Bearer <TOKEN_MANGAKA>`
+  - `Content-Type: multipart/form-data`
+- **Body (form-data)**:
+  - `Title`: `Hành Trình Mới`
+  - `Description`: `Mô tả về hành trình mới của nhân vật`
+  - `AlternativeTitle`: `New Journey`
+  - `File`: `[Chọn 1 File ảnh làm ảnh bìa truyện]`
+
+#### Ví dụ cURL:
+```bash
+curl -X POST "https://localhost:7129/api/upload/series" \
+  -H "accept: */*" \
+  -H "Authorization: Bearer <TOKEN_MANGAKA>" \
+  -H "Content-Type: multipart/form-data" \
+  -F "Title=Hành Trình Mới" \
+  -F "Description=Mô tả về hành trình mới của nhân vật" \
+  -F "AlternativeTitle=New Journey" \
+  -F "File=@/path/to/cover.png"
+```
+*(Yêu cầu đăng ký thành công sẽ tạo Series ở trạng thái `Draft` chờ Admin duyệt).*
+
+### Admin / Editor duyệt hoặc từ chối đăng ký Series mới (GraphQL Mutation - Token Admin/Editor):
+*Khi duyệt thành công: Series chuyển sang trạng thái `Ongoing` và gán Biên tập viên (Tantou Editor) phụ trách.*
+
+```graphql
+mutation ReviewSeries($request: ReviewSeriesRequestInput!) {
+  reviewSeries(request: $request) {
+    succeeded
+    message
+    errors
+    data {
+      id
+      title
+      status
+      coverImageUrl
+      authorId
+      tantouEditorId
+    }
+  }
+}
+```
+
+**GraphQL Variables (JSON) - Duyệt Chấp Nhận (Approve):**
+```json
+{
+  "request": {
+    "seriesId": "ĐIỀN_ID_SERIES_VỪA_TẠO_VÀO_ĐÂY",
+    "isApproved": true,
+    "tantouEditorId": "ĐIỀN_ID_TANTOU_EDITOR_VÀO_ĐÂY"
+  }
+}
+```
+
+**GraphQL Variables (JSON) - Từ Chối & Xóa Series (Reject):**
+```json
+{
+  "request": {
+    "seriesId": "ĐIỀN_ID_SERIES_VỪA_TẠO_VÀO_ĐÂY",
+    "isApproved": false
+  }
+}
+```
 
 ### Gán thứ hạng mới cho Series (Dùng trong hệ thống Ranking)
 ```graphql

@@ -286,4 +286,56 @@ public class SeriesService : ISeriesService
 
         return series.AuthorId == userId || series.TantouEditorId == userId;
     }
+
+    public async Task<Result<SeriesResponse>> ReviewSeriesAsync(ReviewSeriesRequest request, Guid adminUserId)
+    {
+        var series = await _uow.Series.GetWithRankingsAsync(request.SeriesId);
+        if (series == null)
+            return Result<SeriesResponse>.NotFound("SERIES_NOT_FOUND", "Bộ truyện không tồn tại.");
+
+        if (series.Status != SeriesStatus.Draft)
+            return Result<SeriesResponse>.Failure("ALREADY_REVIEWED", "Bộ truyện này đã được xử lý.");
+
+        if (request.IsApproved)
+        {
+            if (request.TantouEditorId == null)
+                return Result<SeriesResponse>.Failure("EDITOR_REQUIRED", "Vui lòng chọn Biên tập viên (Tantou Editor) khi duyệt bộ truyện.");
+
+            var editor = await _uow.Users.GetUserWithRolesAsync(request.TantouEditorId.Value);
+            if (editor == null || !editor.Roles.Any(r => r.Name == "Tantou Editor"))
+                return Result<SeriesResponse>.Failure("INVALID_EDITOR", "Biên tập viên không hợp lệ.");
+
+            series.Status = SeriesStatus.Ongoing;
+            series.TantouEditorId = request.TantouEditorId.Value;
+            series.UpdatedAt = DateTime.UtcNow;
+            _uow.Series.Update(series);
+
+            await _uow.SaveChangesAsync();
+
+            string? authorEmail = series.AuthorEmail ?? series.Author?.Email;
+            string authorName = series.AuthorName ?? series.Author?.Username ?? "Tác giả";
+            if (!string.IsNullOrEmpty(authorEmail))
+            {
+                await _emailService.SendApplicationApprovedAsync(authorEmail, authorName, series.Title);
+            }
+
+            return Result<SeriesResponse>.Success(series.Adapt<SeriesResponse>(), "Bộ truyện đã được duyệt và hoạt động thành công.");
+        }
+        else
+        {
+            // 1. Xóa Series
+            _uow.Series.Remove(series);
+            await _uow.SaveChangesAsync();
+
+            // 2. Gửi email thông báo từ chối
+            string? authorEmail = series.AuthorEmail ?? series.Author?.Email;
+            string authorName = series.AuthorName ?? series.Author?.Username ?? "Tác giả";
+            if (!string.IsNullOrEmpty(authorEmail))
+            {
+                await _emailService.SendApplicationRejectedAsync(authorEmail, authorName, series.Title, "Đơn đăng ký bộ truyện mới đã bị từ chối bởi quản trị viên.");
+            }
+
+            return Result<SeriesResponse>.Success(series.Adapt<SeriesResponse>(), "Đơn đăng ký bộ truyện đã bị từ chối và xóa thành công.");
+        }
+    }
 }

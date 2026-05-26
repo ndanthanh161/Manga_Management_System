@@ -19,7 +19,7 @@ public class SeriesMapping : IRegister
         // CreateSeriesRequest -> Series
         config.NewConfig<CreateSeriesRequest, Series>()
             .Map(dest => dest.Id, src => Guid.NewGuid())
-            .Map(dest => dest.Status, src => SeriesStatus.Ongoing)
+            .Map(dest => dest.Status, src => SeriesStatus.Draft)
             .Map(dest => dest.CreatedAt, src => DateTime.UtcNow)
             .Ignore(dest => dest.Author!)
             .Ignore(dest => dest.Chapters)
@@ -35,7 +35,7 @@ public class SeriesMapping : IRegister
             .Map(dest => dest.CoverImageUrl, src => src.Cover.SecureUrl)
             .Map(dest => dest.CreatedAt, src => DateTime.UtcNow)
             .Map(dest => dest.AuthorId, src => src.MangakaId.HasValue && src.MangakaId.Value != Guid.Empty ? src.MangakaId : null)
-            .Map(dest => dest.Status, src => src.MangakaId.HasValue && src.MangakaId.Value != Guid.Empty ? SeriesStatus.Ongoing : SeriesStatus.Draft)
+            .Map(dest => dest.Status, src => SeriesStatus.Draft)
             .Map(dest => dest.AuthorEmail, src => src.MangakaId.HasValue && src.MangakaId.Value != Guid.Empty ? null : src.Request.AuthorEmail)
             .Map(dest => dest.AuthorName, src => src.MangakaId.HasValue && src.MangakaId.Value != Guid.Empty ? null : src.Request.AuthorName)
             .Ignore(dest => dest.Author!)
