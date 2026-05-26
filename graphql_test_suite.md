@@ -1,23 +1,86 @@
-# Hướng Dẫn Chạy Test GraphQL (Manga Management System)
+# GraphQL Test Suite - Mangaka & Assistant Workflows
 
-Tài liệu này chứa toàn bộ các câu lệnh GraphQL (Queries & Mutations) đã được tối ưu hóa dạng **inline** và cập nhật theo cơ chế phân quyền mới nhất, bao gồm cả các API của Phase 5 & 6.
+Tài liệu này viết lại test suite theo đúng các query/mutation đang expose trong `src/MMS.API/GraphQL`, đồng thời sắp xếp theo nghiệp vụ Mangaka và Assistant.
+
+Lưu ý phạm vi:
+
+- Không có mutation GraphQL `createSeries` hoặc `updateSeries` trong code hiện tại. Series ứng tuyển được tạo qua REST `POST /api/candidate-application/submit`; Series nội bộ thứ 2 cần được seed/tạo bằng endpoint/service hiện có trước khi test `createSubmission`.
+- Form ứng tuyển public là REST multipart, không phải GraphQL.
+- Các enum GraphQL thường dùng dạng `IN_PROGRESS`, `NEEDS_REVISION`, `REVIEW`, `DONE`, `APPROVED`, `REJECTED`.
+- Header khi cần auth: `Authorization: Bearer <TOKEN>`.
 
 ---
 
-## 1. KHỞI TẠO TÀI KHOẢN (Public API)
+## 0. Biến dùng trong quá trình test
 
-### Tạo tài khoản Mangaka:
+Thay các placeholder sau bằng ID/token thực tế sau từng bước:
+
+```text
+<ADMIN_TOKEN>
+<TANTOU_TOKEN>
+<BOARD_TOKEN>
+<MANGAKA_TOKEN>
+<ASSISTANT_TOKEN>
+
+<APPLICATION_ID>
+<TANTOU_EDITOR_ID>
+<MANGAKA_ID>
+<ASSISTANT_ID>
+<SERIES_ID>
+<CHAPTER_ID>
+<PAGE_ID>
+<REGION_ID>
+<TASK_ID>
+<MANUSCRIPT_ID>
+<SUBMISSION_ID>
+<ANNOTATION_ID>
+```
+
+---
+
+## 1. Auth & kiểm tra role
+
+### 1.1. Đăng nhập
+
 ```graphql
-mutation {
-  createUser(
-    request: {
-      username: "mangaka_test"
-      email: "mangaka@example.com"
-      password: "Password123!"
-      roles: ["Mangaka"]
-      mangakaId: null
+mutation Login {
+  login(request: { email: "admin@example.com", password: "Password123!" }) {
+    succeeded
+    message
+    data {
+      accessToken
+      refreshToken
+      id
+      username
+      email
+      roles
+      mangakaId
     }
-  ) {
+  }
+}
+```
+
+### 1.2. Kiểm tra user hiện có
+
+```graphql
+query Users {
+  users {
+    id
+    username
+    email
+    roles
+    isActive
+    mangakaId
+    baseSalary
+  }
+}
+```
+
+### 1.3. Kiểm tra chi tiết một user
+
+```graphql
+query UserById {
+  userById(id: "<MANGAKA_ID>") {
     succeeded
     message
     data {
@@ -25,30 +88,7 @@ mutation {
       username
       email
       roles
-    }
-  }
-}
-```
-
-### Tạo tài khoản Assistant (Liên kết với Mangaka):
-*(Thay thế ID Mangaka vừa tạo vào trường `mangakaId`)*
-```graphql
-mutation {
-  createUser(
-    request: {
-      username: "assistant_test"
-      email: "assistant@example.com"
-      password: "Password123!"
-      roles: ["Assistant"]
-      mangakaId: "ĐIỀN_ID_MANGAKA_VÀO_ĐÂY"
-    }
-  ) {
-    succeeded
-    message
-    data {
-      id
-      username
-      email
+      isActive
       mangakaId
     }
   }
@@ -57,191 +97,507 @@ mutation {
 
 ---
 
-## 2. ĐĂNG NHẬP ĐỂ LẤY TOKEN (Public API)
+## 2. Luồng public: Ứng viên gửi bản thảo để trở thành Mangaka
 
-### Đăng nhập Mangaka:
+### 2.1. Ứng viên gửi form ứng tuyển
+
+REST public, không cần token.
+
+```bash
+curl -X POST "https://localhost:7129/api/candidate-application/submit" \
+  -H "accept: */*" \
+  -F "Email=candidate01@example.com" \
+  -F "Password=Password123!" \
+  -F "FullName=Nguyen Van Sang" \
+  -F "SeriesTitle=Moonlit Ink" \
+  -F "Files=@D:/test-files/storyboard-page-01.png" \
+  -F "Files=@D:/test-files/storyboard-page-02.png"
+```
+
+Kỳ vọng:
+
+- Tạo `CandidateApplication` trạng thái `Pending`.
+- Tạo user pending/inactive, chưa có role Mangaka.
+- Tạo Series nháp liên kết với hồ sơ.
+- Trả về `data.id`; lưu lại thành `<APPLICATION_ID>`.
+
+### 2.2. Admin xem danh sách đơn chờ duyệt
+
+Header: `<ADMIN_TOKEN>`.
+
 ```graphql
-mutation {
-  login(request: { emailOrUsername: "mangaka_test", password: "Password123!" }) {
+query PendingApplications {
+  pendingApplications {
     succeeded
     message
     data {
-      accessToken
-      roles
+      id
+      fullName
+      email
+      seriesTitle
+      status
+      createdAt
+      assets {
+        id
+        name
+        type
+        fileUrl
+        size
+        uploadedAt
+      }
     }
   }
 }
 ```
-*(Copy `accessToken` đính kèm vào Header `Authorization: Bearer <TOKEN_MANGAKA>` khi gọi các lệnh ở Phần 3)*
 
-### Đăng nhập Assistant:
+### 2.3. Admin xem chi tiết đơn ứng tuyển
+
+Header: `<ADMIN_TOKEN>`.
+
 ```graphql
-mutation {
-  login(request: { emailOrUsername: "assistant_test", password: "Password123!" }) {
+query ApplicationById {
+  applicationById(id: "<APPLICATION_ID>") {
     succeeded
     message
     data {
-      accessToken
-      roles
+      id
+      fullName
+      email
+      seriesTitle
+      status
+      reviewNote
+      createdAt
+      reviewedAt
+      assets {
+        id
+        name
+        type
+        fileUrl
+        publicId
+        size
+      }
     }
   }
 }
 ```
-*(Copy `accessToken` đính kèm vào Header `Authorization: Bearer <TOKEN_ASSISTANT>` khi gọi các lệnh ở Phần 4)*
 
----
+### 2.4A. Admin từ chối đơn ứng tuyển
 
-## 3. CÁC HOẠT ĐỘNG CỦA MANGAKA (Token Mangaka)
+Header: `<ADMIN_TOKEN>`.
 
-*Đính kèm Header:* `Authorization: Bearer <TOKEN_MANGAKA>`
-
-### Thiết lập lương cứng cho Trợ lý:
 ```graphql
-mutation {
-  setAssistantBaseSalary(
-    assistantId: "ĐIỀN_ID_ASSISTANT_VÀO_ĐÂY"
-    baseSalary: 1500.0
+mutation RejectApplication {
+  reviewApplication(
+    request: {
+      applicationId: "<APPLICATION_ID>"
+      isApproved: false
+      reviewNote: "Storyboard còn thiếu nhịp kể chuyện và bố cục panel chưa rõ."
+    }
+  ) {
+    succeeded
+    message
+    data {
+      id
+      fullName
+      email
+      seriesTitle
+      status
+      reviewNote
+      reviewedAt
+    }
+  }
+}
+```
+
+Kỳ vọng:
+
+- `status = Rejected`.
+- User pending và Series nháp bị xóa/ẩn theo service hiện tại.
+- Ứng viên không login được.
+
+### 2.4B. Admin chấp nhận đơn ứng tuyển
+
+Header: `<ADMIN_TOKEN>`.
+
+```graphql
+mutation ApproveApplication {
+  reviewApplication(
+    request: {
+      applicationId: "<APPLICATION_ID>"
+      isApproved: true
+      reviewNote: "Nét vẽ tốt, tiềm năng thương mại rõ. Duyệt làm Mangaka chính thức."
+      tantouEditorId: "<TANTOU_EDITOR_ID>"
+    }
   ) {
     succeeded
     message
     errors
     data {
       id
+      fullName
+      email
+      seriesTitle
+      status
+      reviewNote
+      reviewedAt
+    }
+  }
+}
+```
+
+Kỳ vọng:
+
+- `CandidateApplication.status = Approved`.
+- User được active và có role `Mangaka`.
+- Series chuyển `Ongoing` và có `TantouEditorId`.
+- Hệ thống tạo Chapter 1 và Manuscript từ assets ứng tuyển.
+- Ứng viên có thể login bằng email/password đã gửi.
+
+### 2.5. Mangaka mới đăng nhập sau khi được duyệt
+
+```graphql
+mutation LoginApprovedMangaka {
+  login(request: { email: "candidate01@example.com", password: "Password123!" }) {
+    succeeded
+    message
+    data {
+      accessToken
+      id
       username
-      baseSalary
+      email
+      roles
+      mangakaId
     }
-  }
-}
-```
-
-### Giao việc cho Trợ lý (Assign Task):
-```graphql
-mutation {
-  assignTask(
-    input: {
-      title: "Vẽ line-art vùng mắt nhân vật chính"
-      description: "Yêu cầu vẽ sắc nét, đúng theo phong cách gothic."
-      assistantId: "ĐIỀN_ID_ASSISTANT_VÀO_ĐÂY"
-      regionId: "ĐIỀN_ID_REGION_VÀO_ĐÂY"
-      priority: "High"
-      dueDate: "2026-05-25T17:00:00Z"
-      resourceUrl: "https://storage.manga.com/resources/raw_page1.png"
-    }
-  ) {
-    id
-    title
-    description
-    status
-    priority
-    assignedUserName
-  }
-}
-```
-*(Lưu lại `id` của Task vừa tạo)*
-
-### Tạo ghi chú lỗi cần sửa trên trang truyện (Annotation - Đã cập nhật Phase 6):
-```graphql
-mutation {
-  createAnnotation(
-    input: {
-      pageId: "ĐIỀN_ID_PAGE_VÀO_ĐÂY"
-      content: "Chỉnh lại mắt bên phải hơi lệch 5 độ"
-      category: ARTWORK
-      shape: RECTANGLE
-      x: 45.5
-      y: 60.2
-      width: 10.0
-      height: 10.0
-    }
-  ) {
-    id
-    content
-    status
-    category
-    shape
-    x
-    y
-    width
-    height
-    createdAt
-  }
-}
-```
-
-### Yêu cầu Trợ lý làm lại (NeedsRevision):
-```graphql
-mutation {
-  updateTaskStatus(
-    taskId: "ĐIỀN_ID_TASK_VÀO_ĐÂY"
-    input: {
-      newStatus: NEEDS_REVISION
-      resultNote: "Sửa lại nét vẽ mắt như ghi chú anh vừa ghi trên trang nhé."
-    }
-  ) {
-    id
-    title
-    status
-    resultNote
-  }
-}
-```
-
-### Duyệt hoàn thành Task (Done):
-```graphql
-mutation {
-  updateTaskStatus(
-    taskId: "ĐIỀN_ID_TASK_VÀO_ĐÂY"
-    input: { newStatus: DONE }
-  ) {
-    id
-    title
-    status
-    completedAt
-  }
-}
-```
-
-### Nộp bản thảo truyện lên ban biên tập (Create Submission):
-```graphql
-mutation {
-  createSubmission(
-    input: {
-      seriesId: "ĐIỀN_ID_SERIES_VÀO_ĐÂY"
-      title: "Chương 5: Trận chiến bắt đầu"
-      note: "Bản thảo chương 5 hoàn chỉnh"
-      manuscripts: [
-        {
-          name: "Bản thảo hoàn chỉnh"
-          assetUrls: ["https://storage.manga.com/submissions/ch5_final.png"]
-        }
-      ]
-    }
-  ) {
-    id
-    title
-    status
-    seriesTitle
-    submittedAt
   }
 }
 ```
 
 ---
 
-## 4. CÁC HOẠT ĐỘNG CỦA ASSISTANT (Token Assistant)
+## 3. Mangaka: quản lý studio và tạo submission nội bộ
 
-*Đính kèm Header:* `Authorization: Bearer <TOKEN_ASSISTANT>`
+Header mặc định: `<MANGAKA_TOKEN>`.
 
-### Xem danh sách công việc của mình:
+### 3.1. Xem danh sách Series của Mangaka
+
 ```graphql
-query {
+query MySeries {
+  mySeries(mangakaId: "<MANGAKA_ID>") {
+    id
+    title
+    alternativeTitle
+    description
+    coverImageUrl
+    status
+    authorId
+    authorName
+    createdAt
+    updatedAt
+  }
+}
+```
+
+### 3.2. Xem chi tiết Series
+
+```graphql
+query SeriesById {
+  seriesById(id: "<SERIES_ID>") {
+    id
+    title
+    alternativeTitle
+    description
+    coverImageUrl
+    status
+    authorId
+    authorName
+    createdAt
+    updatedAt
+  }
+}
+```
+
+### 3.3. Luồng Mangaka nội bộ tạo bộ truyện thứ 2
+
+Hiện chưa có GraphQL mutation tạo Series. Test setup cần tạo `<SERIES_ID>` bằng một trong các cách ngoài GraphQL hiện có trong môi trường test:
+
+- Seed trực tiếp DB với `AuthorId = <MANGAKA_ID>`, `Status = Draft`.
+- Gọi service/endpoint upload-cover nếu project test có expose.
+- Dùng dữ liệu Series đã có của Mangaka.
+
+Sau khi có `<SERIES_ID>`, Mangaka nộp bản thảo nội bộ:
+
+```graphql
+mutation CreateInternalSubmission {
+  createSubmission(
+    input: {
+      seriesId: "<SERIES_ID>"
+      title: "Pitch bộ truyện thứ 2 - Chapter 0"
+      note: "Bản pitch nội bộ, gửi hội đồng phân công Tantou và duyệt lên Ongoing."
+      manuscripts: [
+        {
+          name: "Storyboard pitch nội bộ"
+          assetUrls: [
+            "https://storage.example.com/internal-pitch/page-01.png",
+            "https://storage.example.com/internal-pitch/page-02.png"
+          ]
+        }
+      ]
+    }
+  ) {
+    id
+    title
+    note
+    status
+    seriesId
+    seriesTitle
+    mangakaId
+    mangakaName
+    assignedTantouId
+    submittedAt
+    manuscripts {
+      id
+      name
+      version
+      status
+      isCurrentVersion
+      chapterId
+      createdAt
+    }
+  }
+}
+```
+
+Kỳ vọng:
+
+- Tạo `Submission` cho Series nội bộ.
+- Vì Series mới chưa có Tantou, submission đi vào inbox Admin/Editorial Board theo service hiện tại.
+- Lưu `id` thành `<SUBMISSION_ID>`.
+
+### 3.4. Xem submission của Mangaka
+
+```graphql
+query MySubmissions {
+  mySubmissions(mangakaId: "<MANGAKA_ID>") {
+    id
+    title
+    note
+    status
+    seriesId
+    seriesTitle
+    mangakaId
+    mangakaName
+    assignedTantouId
+    assignedTantouName
+    submittedAt
+    resolvedAt
+  }
+}
+```
+
+### 3.5. Tạo Chapter chính thức
+
+```graphql
+mutation CreateChapter {
+  createChapter(
+    input: {
+      seriesId: "<SERIES_ID>"
+      title: "Chapter 1: Loi mo dau"
+      chapterNumber: 1
+    }
+  ) {
+    id
+    title
+    chapterNumber
+    isPublished
+    createdAt
+    seriesId
+  }
+}
+```
+
+### 3.6. Tạo Page bản thảo thô
+
+```graphql
+mutation CreatePage {
+  createPage(
+    input: {
+      chapterId: "<CHAPTER_ID>"
+      pageNumber: 1
+      imageUrl: "https://storage.example.com/pages/chapter-1-page-1-rough.png"
+    }
+  ) {
+    id
+    pageNumber
+    imageUrl
+    chapterId
+    version
+    isCurrentVersion
+    width
+    height
+    fileSizeBytes
+    createdAt
+  }
+}
+```
+
+### 3.7. Tạo Region bằng tọa độ phần trăm
+
+```graphql
+mutation CreateRegion {
+  createRegion(
+    input: {
+      pageId: "<PAGE_ID>"
+      name: "Panel 01 - Nen lau dai"
+      description: "Vung nen can ve chi tiet kien truc lau dai."
+      x: 8.5
+      y: 12.0
+      width: 42.0
+      height: 30.5
+    }
+  ) {
+    id
+    name
+    description
+    pageId
+    x
+    y
+    width
+    height
+  }
+}
+```
+
+Kỳ vọng:
+
+- `x/y/width/height` lưu theo tỉ lệ phần trăm.
+- Lưu `id` thành `<REGION_ID>`.
+
+### 3.8. Xem Region của Page
+
+```graphql
+query RegionsByPage {
+  regionsByPage(pageId: "<PAGE_ID>") {
+    id
+    name
+    description
+    pageId
+    x
+    y
+    width
+    height
+  }
+}
+```
+
+### 3.9. Xem danh sách Assistant của Mangaka
+
+```graphql
+query MyAssistants {
+  myAssistants {
+    id
+    username
+    email
+    roles
+    mangakaId
+    baseSalary
+  }
+}
+```
+
+### 3.10. Thiết lập lương cứng cho Assistant
+
+```graphql
+mutation SetAssistantBaseSalary {
+  setAssistantBaseSalary(assistantId: "<ASSISTANT_ID>", baseSalary: 6000000) {
+    succeeded
+    message
+    errors
+    data {
+      id
+      username
+      email
+      roles
+      mangakaId
+      baseSalary
+    }
+  }
+}
+```
+
+### 3.11. Giao WorkTask cho Assistant
+
+```graphql
+mutation AssignTask {
+  assignTask(
+    input: {
+      title: "Ve nen lau dai cho Panel 01"
+      description: "Hoan thien background lau dai, giu dung phoi canh va mood u toi."
+      assistantId: "<ASSISTANT_ID>"
+      regionId: "<REGION_ID>"
+      priority: "High"
+      dueDate: "2026-06-30T17:00:00Z"
+      resourceUrl: "https://storage.example.com/resources/castle-reference-pack.zip"
+      reward: 750000
+    }
+  ) {
+    id
+    title
+    description
+    status
+    priority
+    dueDate
+    assignedUserId
+    assignedUserName
+    regionId
+    pageImageUrl
+    resourceUrl
+    reward
+    createdAt
+    region {
+      id
+      name
+      x
+      y
+      width
+      height
+    }
+  }
+}
+```
+
+Kỳ vọng:
+
+- `status = Todo`.
+- Task gắn đúng `assistantId`, `regionId`, `reward`.
+- Lưu `id` thành `<TASK_ID>`.
+
+---
+
+## 4. Assistant: nhận việc, làm việc, nộp kết quả
+
+Header mặc định: `<ASSISTANT_TOKEN>`.
+
+### 4.1. Xem danh sách task được giao
+
+```graphql
+query MyTasks {
   myTasks {
     id
     title
     description
-    resourceUrl
     status
     priority
+    dueDate
+    assignedUserId
+    assignedUserName
+    regionId
+    pageImageUrl
+    resourceUrl
+    resultFileUrl
+    resultNote
+    reward
+    completedAt
+    createdAt
     region {
       id
       name
@@ -256,29 +612,42 @@ query {
 }
 ```
 
-### Nhận việc (Chuyển sang InProgress):
+Kỳ vọng:
+
+- Danh sách task của Assistant được sắp xếp/phục vụ theo priority và due date nếu service hỗ trợ.
+- Task hiển thị `region` để UI tô sáng đúng vùng cần xử lý.
+- `resourceUrl` dùng để tải tài nguyên hỗ trợ.
+
+### 4.2. Assistant bắt đầu làm việc
+
 ```graphql
-mutation {
+mutation StartTask {
   updateTaskStatus(
-    taskId: "ĐIỀN_ID_TASK_VÀO_ĐÂY"
+    taskId: "<TASK_ID>"
     input: { newStatus: IN_PROGRESS }
   ) {
     id
     title
     status
+    resultFileUrl
+    resultNote
+    reward
   }
 }
 ```
 
-### Nộp sản phẩm để tác giả duyệt (Chuyển sang Review):
+Kỳ vọng: `status = InProgress`.
+
+### 4.3. Assistant nộp sản phẩm hoàn thiện
+
 ```graphql
-mutation {
+mutation SubmitTaskResult {
   updateTaskStatus(
-    taskId: "ĐIỀN_ID_TASK_VÀO_ĐÂY"
+    taskId: "<TASK_ID>"
     input: {
       newStatus: REVIEW
-      resultFileUrl: "https://storage.manga.com/results/task_completed.psd"
-      resultNote: "Em đã hoàn thành nét vẽ mắt nhân vật chính!"
+      resultFileUrl: "https://storage.example.com/results/panel-01-castle-bg-final.psd"
+      resultNote: "Em da hoan thien nen lau dai va can lai tuong phan theo storyboard."
     }
   ) {
     id
@@ -286,33 +655,155 @@ mutation {
     status
     resultFileUrl
     resultNote
+    completedAt
   }
 }
 ```
 
-### Tra cứu ghi chú sửa đổi chi tiết trên trang (Đã cập nhật Phase 6):
-*(Thay `pageId` lấy được từ trường `region.pageId` trong thông tin task)*
+Kỳ vọng:
+
+- `status = Review`.
+- Mangaka nhận notification theo nghiệp vụ/service tích hợp.
+
+### 4.4. Assistant xem ghi chú chỉnh sửa trên Page
+
 ```graphql
-query {
-  annotationsByPage(pageId: "ĐIỀN_ID_PAGE_LẤY_ĐƯỢC_TỪ_TASK_VÀO_ĐÂY") {
+query AnnotationsByPage {
+  annotationsByPage(pageId: "<PAGE_ID>") {
     id
+    pageId
+    userId
+    userName
     content
-    status
     category
     shape
     x
     y
     width
     height
-    userName
+    strokeData
+    status
+    resolvedAt
+    resolvedByUserName
+    closedAt
+    closedByUserName
     createdAt
   }
 }
 ```
 
-### Trợ lý theo dõi thu nhập hàng tháng:
+### 4.5. Assistant đánh dấu đã xử lý annotation
+
 ```graphql
-query {
+mutation ResolveAnnotation {
+  resolveAnnotation(annotationId: "<ANNOTATION_ID>") {
+    id
+    status
+    content
+    resolvedAt
+    resolvedByUserId
+    resolvedByUserName
+  }
+}
+```
+
+---
+
+## 5. Mangaka: duyệt hoặc yêu cầu sửa task của Assistant
+
+Header mặc định: `<MANGAKA_TOKEN>`.
+
+### 5.1. Mangaka tạo annotation trực quan khi cần sửa
+
+```graphql
+mutation CreateRevisionAnnotation {
+  createAnnotation(
+    input: {
+      pageId: "<PAGE_ID>"
+      content: "Tang do sau bong do o chan cot, diem sang hien dang phang."
+      category: ARTWORK
+      shape: RECTANGLE
+      x: 22.5
+      y: 31.2
+      width: 12.0
+      height: 8.0
+      strokeData: null
+    }
+  ) {
+    id
+    pageId
+    userId
+    userName
+    content
+    category
+    shape
+    x
+    y
+    width
+    height
+    status
+    createdAt
+  }
+}
+```
+
+### 5.2A. Mangaka yêu cầu Assistant sửa lại
+
+```graphql
+mutation RequestTaskRevision {
+  updateTaskStatus(
+    taskId: "<TASK_ID>"
+    input: {
+      newStatus: NEEDS_REVISION
+      resultNote: "Can sua theo annotation tren Panel 01, uu tien bong do chan cot va texture da."
+    }
+  ) {
+    id
+    title
+    status
+    resultFileUrl
+    resultNote
+    completedAt
+  }
+}
+```
+
+Kỳ vọng:
+
+- `status = NeedsRevision`.
+- Task quay lại danh sách công việc của Assistant kèm ghi chú.
+
+### 5.2B. Mangaka phê duyệt task
+
+```graphql
+mutation ApproveTask {
+  updateTaskStatus(
+    taskId: "<TASK_ID>"
+    input: { newStatus: DONE }
+  ) {
+    id
+    title
+    status
+    reward
+    completedAt
+  }
+}
+```
+
+Kỳ vọng:
+
+- `status = Done`.
+- `completedAt` có giá trị.
+- Reward được tính vào báo cáo thu nhập tháng của Assistant theo service hiện tại.
+
+---
+
+## 6. Assistant: dashboard thu nhập tháng
+
+Header: `<ASSISTANT_TOKEN>`.
+
+```graphql
+query MonthlyIncomeStats {
   monthlyIncomeStats {
     year
     month
@@ -326,132 +817,235 @@ query {
 }
 ```
 
+Kỳ vọng:
+
+- Tháng hiện tại liệt kê các task `Done`.
+- `totalIncome` phản ánh lương cứng/bonus/reward theo logic service.
+- Đây là dữ liệu nền để UI export PDF báo cáo thanh toán.
+
 ---
 
-## 5. CÁC HOẠT ĐỘNG QUẢN LÝ GÓP Ý & XÉT DUYỆT (PHASE 5 & 6)
-*Lưu ý: Yêu cầu token của role tương ứng: Tantou, Mangaka, EditorialBoard hoặc Assistant.*
+## 7. Tantou / Editorial Board: xét duyệt submission
 
-### Đánh dấu Annotation đã sửa xong (Role: Mangaka, Assistant)
+### 7.1. Tantou/Admin/Board xem inbox submission
+
+Header: `<ADMIN_TOKEN>`, `<TANTOU_TOKEN>` hoặc `<BOARD_TOKEN>`.
+
 ```graphql
-mutation ResolveAnnotation {
-  resolveAnnotation(annotationId: "YOUR_ANNOTATION_ID_HERE") {
+query SubmissionInbox {
+  submissionInbox(filter: SUBMITTED) {
     id
+    title
+    note
     status
-    content
+    seriesId
+    seriesTitle
+    mangakaId
+    mangakaName
+    assignedTantouId
+    assignedTantouName
+    submittedAt
     resolvedAt
-    resolvedByUserName
   }
 }
 ```
 
-### Duyệt / Từ chối bản sửa Annotation (Role: Tantou, EditorialBoard)
+### 7.2. Tantou tiếp nhận thẩm định
 
-**Trường hợp 1: Chấp nhận bản sửa (Approve)**
-```graphql
-mutation ApproveAnnotation {
-  reviewAnnotation(
-    annotationId: "YOUR_ANNOTATION_ID_HERE", 
-    request: {
-      isApproved: true
-    }
-  ) {
-    id
-    status
-    closedAt
-    closedByUserName
-  }
-}
-```
+Header: `<TANTOU_TOKEN>`.
 
-**Trường hợp 2: Bắt sửa lại (Reject + Feedback mới)**
-```graphql
-mutation RejectAnnotation {
-  reviewAnnotation(
-    annotationId: "YOUR_ANNOTATION_ID_HERE", 
-    request: {
-      isApproved: false,
-      feedback: "Phần viền môi vẫn bị thô, hãy dùng nét thanh hơn một chút."
-    }
-  ) {
-    id
-    status
-    content # Sẽ nối thêm feedback mới vào nội dung cũ
-    resolvedAt # Được reset lại
-  }
-}
-```
-
-### Đếm số lượng Annotation chưa đóng theo Chapter (Dùng cho Dashboard)
-```graphql
-query GetUnresolvedCount {
-  unresolvedCountByChapter(chapterId: "YOUR_CHAPTER_ID_HERE") {
-    pageId
-    pageNumber
-    unresolvedCount
-  }
-}
-```
-
-### Xoá Annotation (Vai trò: Chính người tạo ra nó)
-*Lưu ý: Chỉ xoá được khi status đang là OPEN.*
-```graphql
-mutation DeleteAnnotation {
-  deleteAnnotation(annotationId: "YOUR_ANNOTATION_ID_HERE")
-}
-```
-
-### Gửi duyệt bản thảo (Submit) (Role: Mangaka)
-```graphql
-mutation SubmitManuscript {
-  submitManuscript(
-    manuscriptId: "YOUR_MANUSCRIPT_ID_HERE"
-    note: "Bản vẽ thô (name) đã hoàn thành, nhờ Tantou duyệt giúp."
-  ) {
-    id
-    workflowStatus
-  }
-}
-```
-
-### Tantou tiếp nhận bản nộp (Accept) (Role: Tantou, Admin, Editor)
 ```graphql
 mutation AcceptSubmission {
-  acceptSubmission(submissionId: "YOUR_SUBMISSION_ID_HERE") {
+  acceptSubmission(submissionId: "<SUBMISSION_ID>") {
     id
-    workflowStatus
+    title
+    status
+    assignedTantouId
+    assignedTantouName
   }
 }
 ```
 
-### Tantou yêu cầu sửa lại (Return for Revision)
+### 7.3. Tantou yêu cầu sửa submission
+
+Header: `<TANTOU_TOKEN>`.
+
 ```graphql
 mutation ReturnForRevision {
   returnForRevision(
-    submissionId: "YOUR_SUBMISSION_ID_HERE"
-    comment: "Nhịp truyện đoạn giữa còn hơi chậm, cần cắt bớt 1 page."
+    submissionId: "<SUBMISSION_ID>"
+    comment: "Can rut gon phan exposition va them cao trao ro hon o 5 trang dau."
   ) {
     id
-    workflowStatus
+    title
+    status
+    resolvedAt
   }
 }
 ```
 
-### Tantou chuyển tiếp lên Hội đồng Biên tập (Forward to Board)
+### 7.4. Tantou chuyển submission lên hội đồng
+
+Header: `<TANTOU_TOKEN>`.
+
 ```graphql
 mutation ForwardToBoard {
   forwardToBoard(
-    submissionId: "YOUR_SUBMISSION_ID_HERE"
-    comment: "Tác phẩm đạt chuẩn kỹ thuật, xin hội đồng duyệt để xuất bản."
+    submissionId: "<SUBMISSION_ID>"
+    comment: "Ban thao dat yeu cau ve hinh anh va co tiem nang thuong mai."
   ) {
     id
-    workflowStatus
+    title
+    status
+    assignedTantouId
+    assignedTantouName
+  }
+}
+```
+
+### 7.5. Thành viên hội đồng bỏ phiếu
+
+Header: `<BOARD_TOKEN>`.
+
+```graphql
+mutation VoteSubmission {
+  voteSubmission(
+    submissionId: "<SUBMISSION_ID>"
+    approve: true
+    note: "Dong y duyet, concept ro va art direction on dinh."
+  ) {
+    id
+    title
+    status
+    votes {
+      id
+      boardMemberId
+      boardMemberName
+      voteType
+      comment
+    }
+  }
+}
+```
+
+### 7.6A. Hội đồng phê duyệt cuối cùng
+
+Header: `<BOARD_TOKEN>` hoặc `<ADMIN_TOKEN>`.
+
+```graphql
+mutation FinalizeApproved {
+  finalizeBoardDecision(
+    submissionId: "<SUBMISSION_ID>"
+    decision: APPROVED
+    comment: "Hoi dong thong qua. Series duoc dua vao ke hoach phat hanh."
+  ) {
+    id
+    title
+    status
+    resolvedAt
+    transitions {
+      fromStatus
+      toStatus
+      comment
+      occurredAt
+    }
+  }
+}
+```
+
+Kỳ vọng:
+
+- `Submission.status = Approved`.
+- Với luồng pitch được duyệt, Series liên quan được đưa lên `Ongoing` theo service hiện tại.
+
+### 7.6B. Hội đồng từ chối cuối cùng
+
+Header: `<BOARD_TOKEN>` hoặc `<ADMIN_TOKEN>`.
+
+```graphql
+mutation FinalizeRejected {
+  finalizeBoardDecision(
+    submissionId: "<SUBMISSION_ID>"
+    decision: REJECTED
+    comment: "Chua dat yeu cau ve cau truc kich ban, de nghi phat trien lai premise."
+  ) {
+    id
+    title
+    status
+    resolvedAt
+  }
+}
+```
+
+Kỳ vọng:
+
+- `Submission.status = Rejected`.
+- Mangaka nhận feedback; role Mangaka hiện hữu không bị thay đổi trong luồng nội bộ.
+
+### 7.7. Xem chi tiết submission
+
+```graphql
+query SubmissionById {
+  submissionById(id: "<SUBMISSION_ID>") {
+    id
+    title
+    note
+    status
+    seriesId
+    seriesTitle
+    mangakaId
+    mangakaName
+    assignedTantouId
+    assignedTantouName
+    submittedAt
+    resolvedAt
+    manuscripts {
+      id
+      name
+      version
+      status
+      createdAt
+      isCurrentVersion
+      chapterId
+    }
+    votes {
+      id
+      boardMemberId
+      boardMemberName
+      voteType
+      comment
+    }
+    transitions {
+      fromStatus
+      toStatus
+      comment
+      occurredAt
+    }
+  }
+}
+```
+
+### 7.8. Xem lịch sử workflow submission
+
+```graphql
+query SubmissionWorkflowHistory {
+  submissionWorkflowHistory(submissionId: "<SUBMISSION_ID>") {
+    id
+    fromStatus
+    toStatus
+    comment
+    occurredAt
   }
 }
 ```
 
 ---
 
-## 6. QUẢN LÝ TÁC PHẨM / SERIES
+## 8. Survival Tracker: ranking và cảnh báo hủy bỏ
+
+### 8.1. Admin/Editor thêm ranking cho Series
+
+Header: `<ADMIN_TOKEN>` hoặc `<TANTOU_TOKEN>` nếu user có role `Editor`.
 
 ### Mangaka đăng ký Series mới (REST API - multipart/form-data):
 Sử dụng RESTful API với định dạng `multipart/form-data` để đăng ký bộ truyện mới kèm ảnh bìa:
@@ -523,11 +1117,11 @@ mutation ReviewSeries($request: ReviewSeriesRequestInput!) {
 
 ### Gán thứ hạng mới cho Series (Dùng trong hệ thống Ranking)
 ```graphql
-mutation AddSeriesRanking {
+mutation AddSeriesRankingWeek1 {
   addSeriesRanking(
-    seriesId: "YOUR_SERIES_ID_HERE"
-    position: 1
-    period: "May 2026 - Week 4"
+    seriesId: "<SERIES_ID>"
+    position: 18
+    period: "2026-W23"
   ) {
     seriesId
     seriesTitle
@@ -538,161 +1132,425 @@ mutation AddSeriesRanking {
 }
 ```
 
-### Kích hoạt cảnh báo khai tử (Survival Check)
-*Sẽ tự động quét toàn bộ DB để tìm ra các tác phẩm rớt chót bảng 3 lần liên tiếp và phát cảnh báo.*
+Chạy thêm 2 lần cho 3 kỳ liên tiếp:
+
+```graphql
+mutation AddSeriesRankingWeek2 {
+  addSeriesRanking(
+    seriesId: "<SERIES_ID>"
+    position: 19
+    period: "2026-W24"
+  ) {
+    seriesId
+    seriesTitle
+    position
+    period
+    calculatedAt
+  }
+}
+```
+
+```graphql
+mutation AddSeriesRankingWeek3 {
+  addSeriesRanking(
+    seriesId: "<SERIES_ID>"
+    position: 20
+    period: "2026-W25"
+  ) {
+    seriesId
+    seriesTitle
+    position
+    period
+    calculatedAt
+  }
+}
+```
+
+### 8.2. Mangaka xem lịch sử ranking
+
+```graphql
+query SeriesRankings {
+  seriesRankings(seriesId: "<SERIES_ID>") {
+    seriesId
+    seriesTitle
+    position
+    period
+    calculatedAt
+  }
+}
+```
+
+### 8.3. Admin/Editor kích hoạt survival check
+
+Header: `<ADMIN_TOKEN>` hoặc token có role `Editor`.
+
 ```graphql
 mutation TriggerSurvivalCheck {
   triggerSurvivalCheck
 }
 ```
 
+Kỳ vọng:
+
+- Trả về `true`.
+- Nếu Series nằm bottom 3 trong 3 kỳ mới nhất, service gửi email và tạo notification cảnh báo cho Mangaka.
+
 ---
 
-## 7. TUYỂN DỤNG MANGAKA & ĐƠN ỨNG TUYỂN (CANDIDATE APPLICATION)
+## 9. Manuscript versioning cho Chapter
 
-Mục này hướng dẫn test luồng tuyển dụng Mangaka mới. Tác giả vô danh gửi đơn ứng tuyển (kèm Series và các file Bản thảo), sau đó Admin thực hiện xét duyệt đơn.
+Header: `<MANGAKA_TOKEN>`.
 
-### Ứng viên gửi đơn ứng tuyển (REST API - Public - Không cần Token):
-Sử dụng RESTful API với định dạng `multipart/form-data` để gửi đơn ứng tuyển và upload nhiều file bản thảo (Assets):
+### 9.1. Snapshot Chapter thành Manuscript
 
-- **HTTP Method**: `POST`
-- **Endpoint**: `https://localhost:7129/api/candidate-application/submit` (hoặc cổng HTTP tương ứng của bạn)
-- **Headers**: `Content-Type: multipart/form-data`
-- **Body (form-data)**:
-  - `Email`: `candidate@example.com`
-  - `Password`: `Password123!`
-  - `FullName`: `Nguyễn Văn Nghệ`
-  - `SeriesTitle`: `Hành Trình Kỳ Thú`
-  - `Files`: `[Chọn 1 hoặc nhiều File bản thảo để tải lên (ví dụ: .png, .jpg)]`
-
-#### Ví dụ cURL:
-```bash
-curl -X POST "https://localhost:7129/api/candidate-application/submit" \
-  -H "accept: */*" \
-  -H "Content-Type: multipart/form-data" \
-  -F "Email=candidate@example.com" \
-  -F "Password=Password123!" \
-  -F "FullName=Nguyễn Văn Nghệ" \
-  -F "SeriesTitle=Hành Trình Kỳ Thú" \
-  -F "Files=@/path/to/page1.png" \
-  -F "Files=@/path/to/page2.png"
-```
-
-### Admin lấy danh sách đơn đang chờ duyệt (Token Admin):
 ```graphql
-query GetPendingApplications {
-  pendingApplications {
+mutation SnapshotChapter {
+  snapshotChapter(
+    input: {
+      chapterId: "<CHAPTER_ID>"
+      name: "Chapter 1 storyboard snapshot v1"
+    }
+  ) {
     succeeded
     message
     errors
     data {
       id
-      fullName
-      email
-      seriesTitle
+      name
+      version
+      chapterId
       status
+      isCurrentVersion
       createdAt
-      assets {
-        id
-        name
-        type
-        fileUrl
-        size
-      }
     }
   }
 }
 ```
-*(Lưu lại `id` của đơn ứng tuyển cần xử lý).*
 
-### Admin xem chi tiết một đơn ứng tuyển (Token Admin):
+### 9.2. Tạo version mới
+
 ```graphql
-query GetApplicationById($id: UUID!) {
-  applicationById(id: $id) {
+mutation CreateNewVersion {
+  createNewVersion(
+    input: { currentManuscriptId: "<MANUSCRIPT_ID>" }
+  ) {
     succeeded
     message
     errors
     data {
       id
-      fullName
-      email
-      seriesTitle
+      name
+      version
+      chapterId
       status
-      reviewNote
+      isCurrentVersion
       createdAt
-      reviewedAt
-      assets {
-        id
-        name
-        type
-        fileUrl
-        size
-        uploadedAt
-      }
     }
   }
 }
 ```
 
-### Admin duyệt đơn ứng tuyển - Chấp nhận (Token Admin):
-*Khi duyệt đơn thành công: Tài khoản được kích hoạt, gán role Mangaka, chuyển Series nháp sang trạng thái Ongoing và liên kết với Biên tập viên (Tantou Editor).*
+### 9.3. Revert về version cũ
+
 ```graphql
-mutation ReviewApplication($request: ReviewApplicationRequestInput!) {
-  reviewApplication(request: $request) {
+mutation RevertToVersion {
+  revertToVersion(versionId: "<MANUSCRIPT_ID>") {
     succeeded
     message
     errors
     data {
       id
-      fullName
-      email
-      seriesTitle
+      name
+      version
+      chapterId
       status
-      reviewNote
-      reviewedAt
+      isCurrentVersion
+      createdAt
     }
-  }
-}
-```
-**GraphQL Variables (JSON):**
-```json
-{
-  "request": {
-    "applicationId": "ĐIỀN_ID_ĐƠN_ỨNG_TUYỂN_VÀO_ĐÂY",
-    "isApproved": true,
-    "reviewNote": "Nét vẽ tốt, cốt truyện cuốn hút. Duyệt làm Mangaka chính thức của hệ thống.",
-    "tantouEditorId": "ĐIỀN_ID_TANTOU_EDITOR_VÀO_ĐÂY"
   }
 }
 ```
 
-### Admin duyệt đơn ứng tuyển - Từ chối (Token Admin):
-*Khi từ chối đơn: Xóa tài khoản pending và tác phẩm nháp khỏi DB, xóa file bản thảo khỏi Cloudinary và gửi email thông báo từ chối.*
+### 9.4. Xem lịch sử version
+
 ```graphql
-mutation ReviewApplication($request: ReviewApplicationRequestInput!) {
-  reviewApplication(request: $request) {
+query VersionHistory {
+  versionHistory(manuscriptId: "<MANUSCRIPT_ID>") {
     succeeded
     message
-    errors
     data {
       id
-      fullName
-      email
-      seriesTitle
+      name
+      version
+      chapterId
       status
-      reviewNote
-      reviewedAt
+      isCurrentVersion
+      createdAt
     }
   }
 }
 ```
-**GraphQL Variables (JSON):**
-```json
-{
-  "request": {
-    "applicationId": "ĐIỀN_ID_ĐƠN_ỨNG_TUYỂN_VÀO_ĐÂY",
-    "isApproved": false,
-    "reviewNote": "Nét vẽ chưa đạt tiêu chuẩn nghệ thuật của nhà xuất bản. Hãy cố gắng luyện tập thêm."
+
+### 9.5. Xem chi tiết Manuscript
+
+```graphql
+query ManuscriptById {
+  manuscriptById(id: "<MANUSCRIPT_ID>") {
+    succeeded
+    message
+    data {
+      id
+      name
+      version
+      chapterId
+      status
+      isCurrentVersion
+      createdAt
+    }
   }
 }
 ```
+
+### 9.6. Submit Manuscript cho Tantou/Board
+
+```graphql
+mutation SubmitManuscript {
+  submitManuscript(
+    manuscriptId: "<MANUSCRIPT_ID>"
+    note: "Chapter 1 da hoan thien, nho Tantou review giup."
+  ) {
+    id
+    title
+    note
+    status
+    seriesId
+    seriesTitle
+    mangakaId
+    mangakaName
+    submittedAt
+    manuscripts {
+      id
+      name
+      version
+      status
+    }
+  }
+}
+```
+
+---
+
+## 10. Chapter, Page và Annotation queries bổ sung
+
+### 10.1. Xem chapter theo Series
+
+```graphql
+query ChaptersBySeries {
+  chaptersBySeries(seriesId: "<SERIES_ID>") {
+    id
+    title
+    chapterNumber
+    isPublished
+    createdAt
+    seriesId
+  }
+}
+```
+
+### 10.2. Xem page theo Chapter
+
+```graphql
+query PagesByChapter {
+  pagesByChapter(chapterId: "<CHAPTER_ID>") {
+    id
+    pageNumber
+    imageUrl
+    chapterId
+    version
+    isCurrentVersion
+    width
+    height
+    fileSizeBytes
+    createdAt
+  }
+}
+```
+
+### 10.3. Xem lịch sử page
+
+```graphql
+query PageHistory {
+  pageHistory(chapterId: "<CHAPTER_ID>", pageNumber: 1) {
+    succeeded
+    message
+    data {
+      id
+      pageNumber
+      imageUrl
+      chapterId
+      version
+      isCurrentVersion
+      width
+      height
+      fileSizeBytes
+      createdAt
+    }
+  }
+}
+```
+
+### 10.4. Đếm annotation chưa xử lý theo Chapter
+
+```graphql
+query UnresolvedCountByChapter {
+  unresolvedCountByChapter(chapterId: "<CHAPTER_ID>") {
+    pageId
+    pageNumber
+    unresolvedCount
+  }
+}
+```
+
+### 10.5. Tantou/EditorialBoard review annotation đã resolve
+
+Header: `<TANTOU_TOKEN>` hoặc `<BOARD_TOKEN>`.
+
+```graphql
+mutation ReviewAnnotationApproved {
+  reviewAnnotation(
+    annotationId: "<ANNOTATION_ID>"
+    request: { isApproved: true }
+  ) {
+    id
+    status
+    content
+    resolvedAt
+    closedAt
+    closedByUserName
+  }
+}
+```
+
+```graphql
+mutation ReviewAnnotationRejected {
+  reviewAnnotation(
+    annotationId: "<ANNOTATION_ID>"
+    request: {
+      isApproved: false
+      feedback: "Van thieu texture da o vung chan cot, can xu ly them."
+    }
+  ) {
+    id
+    status
+    content
+    resolvedAt
+    closedAt
+  }
+}
+```
+
+### 10.6. Xóa annotation đang Open
+
+Header: user tạo annotation hoặc user được service cho phép.
+
+```graphql
+mutation DeleteAnnotation {
+  deleteAnnotation(annotationId: "<ANNOTATION_ID>")
+}
+```
+
+---
+
+## 11. Negative tests theo role
+
+Các case này dùng để xác nhận authorization và ranh giới nghiệp vụ.
+
+### 11.1. Candidate chưa được duyệt không login được
+
+```graphql
+mutation LoginPendingCandidate {
+  login(request: { email: "candidate01@example.com", password: "Password123!" }) {
+    succeeded
+    message
+    errors
+    data {
+      accessToken
+      roles
+    }
+  }
+}
+```
+
+Kỳ vọng: login thất bại khi hồ sơ còn `Pending` hoặc đã `Rejected`.
+
+### 11.2. Assistant không được giao task
+
+Header: `<ASSISTANT_TOKEN>`.
+
+```graphql
+mutation AssistantCannotAssignTask {
+  assignTask(
+    input: {
+      title: "Invalid assign"
+      description: "Assistant khong duoc giao viec cho nguoi khac."
+      assistantId: "<ASSISTANT_ID>"
+      regionId: "<REGION_ID>"
+      priority: "Low"
+      reward: 100000
+    }
+  ) {
+    id
+    status
+  }
+}
+```
+
+Kỳ vọng: bị chặn bởi role, vì `assignTask` chỉ cho `Mangaka`.
+
+### 11.3. Mangaka không được xem dashboard thu nhập của Assistant qua `monthlyIncomeStats`
+
+Header: `<MANGAKA_TOKEN>`.
+
+```graphql
+query MangakaCannotReadAssistantIncome {
+  monthlyIncomeStats {
+    year
+    month
+    totalIncome
+  }
+}
+```
+
+Kỳ vọng: bị chặn bởi role, vì query chỉ cho `Assistant`.
+
+### 11.4. Non-admin không được duyệt CandidateApplication
+
+Header: `<MANGAKA_TOKEN>` hoặc `<TANTOU_TOKEN>`.
+
+```graphql
+mutation NonAdminCannotReviewApplication {
+  reviewApplication(
+    request: {
+      applicationId: "<APPLICATION_ID>"
+      isApproved: true
+      reviewNote: "Khong hop le"
+      tantouEditorId: "<TANTOU_EDITOR_ID>"
+    }
+  ) {
+    succeeded
+    message
+  }
+}
+```
+
+Kỳ vọng: bị chặn bởi role, vì `reviewApplication` chỉ cho `Admin`.
+
+### 11.5. Mangaka nội bộ không đi qua luồng CandidateApplication cho bộ thứ 2
+
+Không gọi `POST /api/candidate-application/submit` cho Mangaka đã có tài khoản nội bộ. Luồng đúng là tạo Series nội bộ bằng setup hiện có, sau đó gọi `createSubmission`.
+
+Kỳ vọng:
+
+- Không yêu cầu email/password mới.
+- Không tạo user pending mới.
+- Submission đi vào Admin/Editorial Board pool nếu Series chưa có Tantou.
