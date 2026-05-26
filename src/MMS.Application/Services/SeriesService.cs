@@ -1,5 +1,6 @@
 using Mapster;
 using MMS.Application.Common;
+using MMS.Application.DTOs.ImageFile;
 using MMS.Application.DTOs.Series;
 using MMS.Application.Interfaces;
 using MMS.Application.Interfaces.Services;
@@ -29,84 +30,107 @@ public class SeriesService : ISeriesService
         _fileValidator = fileValidator;
     }
 
-    public async Task<Result<SeriesResponse>> CreateSeriesWithCoverAsync(Guid? mangakaId, CreateSeriesWithCoverRequest request, CancellationToken ct = default)
+    public async Task<Result<SeriesResponse>> CreateAsync(Guid? mangakaId, CreateSeriesRequest request, CancellationToken ct = default)
     {
-        if (request.File == null || request.File.Length == 0)
-            return Result<SeriesResponse>.Failure("FILE_EMPTY", "File is empty.");
+        string? coverUrl = request.CoverImageUrl;
+        UploadedImageDto? uploadData = null;
 
-        var validationResult = await _fileValidator.ValidateImageAsync(request.File.OpenReadStream(), request.File.FileName, 10);
-        if (!validationResult.Succeeded)
-            return Result<SeriesResponse>.Failure(validationResult.ErrorCode ?? "VALIDATION_FAILED", validationResult.Message ?? "File validation failed.");
+        if (request.File != null && request.File.Length > 0)
+        {
+            // Mở stream 1 lần, seek về 0 sau khi validate để tránh double-read
+            using var stream = request.File.OpenReadStream();
 
-        var createRequest = request.Adapt<CreateSeriesRequest>();
-        using var stream = request.File.OpenReadStream();
+            var validationResult = await _fileValidator.ValidateImageAsync(stream, request.File.FileName, 10);
+            if (!validationResult.Succeeded)
+                return Result<SeriesResponse>.Failure(validationResult.ErrorCode ?? "VALIDATION_FAILED", validationResult.Message ?? "File validation failed.");
+
+            stream.Position = 0;
+            var folder = "mms/series_covers";
+            var hint = $"cover_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+            var uploadResult = await _imageStorage.UploadImageAsync(stream, folder, hint, ct);
+
+            if (!uploadResult.Succeeded)
+                return Result<SeriesResponse>.Failure("UPLOAD_FAILED", $"Cover upload failed: {uploadResult.Message}");
+
+            uploadData = uploadResult.Data;
+            coverUrl = uploadData!.SecureUrl;
+        }
+
         try
         {
-            var series = await CreateWithCoverAsync(mangakaId, createRequest, stream, ct);
-            return Result<SeriesResponse>.Success(series);
-        }
-        catch (Exception ex)
-        {
-            return Result<SeriesResponse>.Failure("CREATE_ERROR", ex.Message);
-        }
-    }
-
-    public async Task<Result<SeriesResponse>> UpdateSeriesWithCoverAsync(Guid seriesId, Guid mangakaId, UpdateSeriesWithCoverRequest request, CancellationToken ct = default)
-    {
-        if (request.File == null || request.File.Length == 0)
-            return Result<SeriesResponse>.Failure("FILE_EMPTY", "File is empty.");
-
-        var validationResult = await _fileValidator.ValidateImageAsync(request.File.OpenReadStream(), request.File.FileName, 10);
-        if (!validationResult.Succeeded)
-            return Result<SeriesResponse>.Failure(validationResult.ErrorCode ?? "VALIDATION_FAILED", validationResult.Message ?? "File validation failed.");
-
-        var updateRequest = request.Adapt<UpdateSeriesRequest>();
-        using var stream = request.File.OpenReadStream();
-        try
-        {
-            var series = await UpdateWithCoverAsync(seriesId, mangakaId, updateRequest, stream, ct);
-            return Result<SeriesResponse>.Success(series);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return Result<SeriesResponse>.NotFound("SERIES_NOT_FOUND", ex.Message);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return Result<SeriesResponse>.Forbidden("FORBIDDEN", ex.Message);
-        }
-        catch (Exception ex)
-        {
-            return Result<SeriesResponse>.Failure("UPDATE_ERROR", ex.Message);
-        }
-    }
-
-    public async Task<SeriesResponse> CreateWithCoverAsync(
-        Guid? mangakaId, CreateSeriesRequest request, Stream coverStream, CancellationToken ct = default)
-    {
-        // 1. Upload ảnh bìa lên Cloudinary
-        var folder = "mms/series_covers";
-        var hint = $"cover_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
-        var uploadResult = await _imageStorage.UploadImageAsync(coverStream, folder, hint, ct);
-
-        if (!uploadResult.Succeeded)
-            throw new InvalidOperationException($"Cover upload failed: {uploadResult.Message}");
-
-        // 2. Tạo Series bằng Mapster (Logic mapping đã được đóng gói 100% trong SeriesMapping.cs)
-        try
-        {
-            var series = (request, uploadResult.Data!, mangakaId).Adapt<Series>();
+            var hasMangaka = mangakaId.GetValueOrDefault() != Guid.Empty;
+            var series = request.Adapt<Series>();
+            series.AuthorId = hasMangaka ? mangakaId : null;
+            series.AuthorEmail = hasMangaka ? null : request.AuthorEmail;
+            series.AuthorName = hasMangaka ? null : request.AuthorName;
+            series.CoverImageUrl = coverUrl;
 
             await _uow.Series.AddAsync(series);
             await _uow.SaveChangesAsync();
 
             var created = await _uow.Series.GetWithRankingsAsync(series.Id);
-            return created!.Adapt<SeriesResponse>();
+            return Result<SeriesResponse>.Success(created!.Adapt<SeriesResponse>());
         }
-        catch
+        catch (Exception ex)
         {
-            await _imageStorage.DeleteImageAsync(uploadResult.Data!.PublicId, ct);
-            throw;
+            if (uploadData != null)
+                await _imageStorage.DeleteImageAsync(uploadData.PublicId, ct);
+            return Result<SeriesResponse>.Failure("CREATE_ERROR", ex.Message);
+        }
+    }
+
+    public async Task<Result<SeriesResponse>> UpdateAsync(Guid id, Guid mangakaId, UpdateSeriesRequest request, CancellationToken ct = default)
+    {
+        var series = await _uow.Series.GetWithRankingsAsync(id);
+        if (series == null)
+            return Result<SeriesResponse>.NotFound("SERIES_NOT_FOUND", $"Series {id} not found.");
+
+        if (series.AuthorId != mangakaId)
+            return Result<SeriesResponse>.Forbidden("FORBIDDEN", "Bạn không có quyền chỉnh sửa series này.");
+
+        UploadedImageDto? uploadData = null;
+
+        if (request.File != null && request.File.Length > 0)
+        {
+            // Mở stream 1 lần, seek về 0 sau khi validate để tránh double-read
+            using var stream = request.File.OpenReadStream();
+
+            var validationResult = await _fileValidator.ValidateImageAsync(stream, request.File.FileName, 10);
+            if (!validationResult.Succeeded)
+                return Result<SeriesResponse>.Failure(validationResult.ErrorCode ?? "VALIDATION_FAILED", validationResult.Message ?? "File validation failed.");
+
+            stream.Position = 0;
+            var folder = $"mms/series_{id}";
+            var hint = $"cover_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+            var uploadResult = await _imageStorage.UploadImageAsync(stream, folder, hint, ct);
+
+            if (!uploadResult.Succeeded)
+                return Result<SeriesResponse>.Failure("UPLOAD_FAILED", $"Cover upload failed: {uploadResult.Message}");
+
+            uploadData = uploadResult.Data;
+        }
+
+        try
+        {
+            request.Adapt(series);
+
+            var newCoverUrl = uploadData?.SecureUrl ?? request.CoverImageUrl;
+            if (!string.IsNullOrEmpty(newCoverUrl))
+            {
+                series.CoverImageUrl = newCoverUrl;
+                series.UpdatedAt = DateTime.UtcNow;
+            }
+
+            _uow.Series.Update(series);
+            await _uow.SaveChangesAsync();
+
+            return Result<SeriesResponse>.Success(series.Adapt<SeriesResponse>());
+        }
+        catch (Exception ex)
+        {
+            if (uploadData != null)
+                await _imageStorage.DeleteImageAsync(uploadData.PublicId, ct);
+            return Result<SeriesResponse>.Failure("UPDATE_ERROR", ex.Message);
         }
     }
 
@@ -120,44 +144,6 @@ public class SeriesService : ISeriesService
     {
         var list = await _uow.Series.GetByAuthorIdAsync(mangakaId);
         return list.Adapt<IEnumerable<SeriesResponse>>();
-    }
-
-    public async Task<SeriesResponse> UpdateWithCoverAsync(
-        Guid id, Guid mangakaId, UpdateSeriesRequest request, Stream coverStream, CancellationToken ct = default)
-    {
-        var series = await _uow.Series.GetWithRankingsAsync(id)
-            ?? throw new KeyNotFoundException($"Series {id} not found.");
-
-        if (series.AuthorId != mangakaId)
-            throw new UnauthorizedAccessException("Bạn không có quyền chỉnh sửa series này.");
-
-        // 1. Upload ảnh bìa mới
-        var folder = $"mms/series_{id}";
-        var hint = $"cover_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
-        var uploadResult = await _imageStorage.UploadImageAsync(coverStream, folder, hint, ct);
-
-        if (!uploadResult.Succeeded)
-            throw new InvalidOperationException($"Cover upload failed: {uploadResult.Message}");
-
-        // 2. Cập nhật qua Mapster (Logic mapping nằm gọn gàng trong SeriesMapping.cs)
-        try
-        {
-            // A. Cập nhật các thay đổi từ request DTO (bỏ qua null qua config của UpdateSeriesRequest)
-            request.Adapt(series);
-
-            // B. Cập nhật ảnh bìa mới và thời gian thông qua config của UploadedImageDto
-            uploadResult.Data!.Adapt(series);
-
-            _uow.Series.Update(series);
-            await _uow.SaveChangesAsync();
-
-            return series.Adapt<SeriesResponse>();
-        }
-        catch
-        {
-            await _imageStorage.DeleteImageAsync(uploadResult.Data!.PublicId, ct);
-            throw;
-        }
     }
 
     public async Task<IEnumerable<SeriesRankingResponse>> GetRankingsAsync(Guid seriesId)

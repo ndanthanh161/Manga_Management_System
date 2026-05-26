@@ -26,22 +26,6 @@ public class SeriesMapping : IRegister
             .Ignore(dest => dest.ReaderVotes)
             .Ignore(dest => dest.Rankings);
 
-        // Tuple (CreateSeriesRequest, UploadedImageDto, Guid?) -> Series
-        config.NewConfig<(CreateSeriesRequest Request, UploadedImageDto Cover, Guid? MangakaId), Series>()
-            .Map(dest => dest.Id, src => Guid.NewGuid())
-            .Map(dest => dest.Title, src => src.Request.Title)
-            .Map(dest => dest.AlternativeTitle, src => src.Request.AlternativeTitle)
-            .Map(dest => dest.Description, src => src.Request.Description)
-            .Map(dest => dest.CoverImageUrl, src => src.Cover.SecureUrl)
-            .Map(dest => dest.CreatedAt, src => DateTime.UtcNow)
-            .Map(dest => dest.AuthorId, src => src.MangakaId.HasValue && src.MangakaId.Value != Guid.Empty ? src.MangakaId : null)
-            .Map(dest => dest.Status, src => SeriesStatus.Draft)
-            .Map(dest => dest.AuthorEmail, src => src.MangakaId.HasValue && src.MangakaId.Value != Guid.Empty ? null : src.Request.AuthorEmail)
-            .Map(dest => dest.AuthorName, src => src.MangakaId.HasValue && src.MangakaId.Value != Guid.Empty ? null : src.Request.AuthorName)
-            .Ignore(dest => dest.Author!)
-            .Ignore(dest => dest.Chapters)
-            .Ignore(dest => dest.ReaderVotes)
-            .Ignore(dest => dest.Rankings);
 
         // UpdateSeriesRequest -> Series (partial update - bỏ qua null)
         config.NewConfig<UpdateSeriesRequest, Series>()

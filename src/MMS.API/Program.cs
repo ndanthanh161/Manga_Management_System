@@ -76,15 +76,16 @@ try
             Name = "Authorization",
             In = ParameterLocation.Header,
             Type = SecuritySchemeType.Http,
-            Scheme = "bearer"
+            Scheme = "bearer",
+            BearerFormat = "JWT"
         });
 
-        options.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
-        {
-            {
-                new OpenApiSecuritySchemeReference("Bearer", null, null),
-                new List<string>()
-            }
+        options.AddSecurityRequirement(openApiDocument => new OpenApiSecurityRequirement
+{
+    {
+        new OpenApiSecuritySchemeReference("Bearer", openApiDocument),
+        new List<string>()
+    }
         });
     });
 
