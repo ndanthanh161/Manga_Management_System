@@ -1,8 +1,8 @@
+using Mapster;
+using MMS.Application.Common;
 using MMS.Application.Interfaces;
 using MMS.Application.Interfaces.Services;
-using MMS.Application.Common;
 using MMS.Domain.Entities;
-using Mapster;
 
 namespace MMS.Application.Services;
 
@@ -15,9 +15,9 @@ public class AuthService : IAuthService
     private readonly IEmailService _emailService;
 
     public AuthService(
-        IUnitOfWork unitOfWork, 
-        IPasswordHasher passwordHasher, 
-        IJwtProvider jwtProvider, 
+        IUnitOfWork unitOfWork,
+        IPasswordHasher passwordHasher,
+        IJwtProvider jwtProvider,
         ICacheService cacheService,
         IEmailService emailService)
     {
@@ -30,8 +30,7 @@ public class AuthService : IAuthService
 
     public async Task<Result<AuthResponse>> LoginAsync(LoginRequest request)
     {
-        var user = await _unitOfWork.Users.GetByEmailAsync(request.EmailOrUsername) 
-                   ?? await _unitOfWork.Users.GetByUsernameAsync(request.EmailOrUsername);
+        var user = await _unitOfWork.Users.GetByEmailAsync(request.email);
 
         if (user == null || !_passwordHasher.Verify(request.Password, user.PasswordHash))
             return Result<AuthResponse>.Failure("INVALID_CREDENTIALS", "Invalid credentials", 401);
@@ -65,8 +64,8 @@ public class AuthService : IAuthService
 
         if (request.RoleName.Equals("Mangaka", StringComparison.OrdinalIgnoreCase))
         {
-            if (!invitingUserRoles.Contains("Admin") && 
-                !invitingUserRoles.Contains("Editor") && 
+            if (!invitingUserRoles.Contains("Admin") &&
+                !invitingUserRoles.Contains("Editor") &&
                 !invitingUserRoles.Contains("EditorialBoard"))
             {
                 return Result<UserInviteDto>.Failure("FORBIDDEN", "Bạn không có quyền mời Mangaka. Chỉ Admin hoặc Editor mới có quyền này.", 403);
@@ -85,8 +84,8 @@ public class AuthService : IAuthService
         }
 
         var invite = await _unitOfWork.Invites.CreateInvitationAsync(
-            request.Email, 
-            request.RoleName, 
+            request.Email,
+            request.RoleName,
             currentUserId);
 
         await _unitOfWork.SaveChangesAsync();
@@ -104,7 +103,7 @@ public class AuthService : IAuthService
             return Result<AuthResponse>.Failure("INVALID_TOKEN", "Invalid or expired invitation token");
 
         var passwordHash = _passwordHasher.Hash(request.Password);
-        
+
         var existingUser = await _unitOfWork.Users.GetByEmailAsync(invite.Email);
         User user;
         if (existingUser != null)
@@ -128,9 +127,9 @@ public class AuthService : IAuthService
         else
         {
             user = await _unitOfWork.Users.ProcessInviteRegistrationAsync(
-                invite.Email, 
-                request.Username, 
-                passwordHash, 
+                invite.Email,
+                request.Username,
+                passwordHash,
                 invite.RoleName,
                 invite.InvitedById);
         }

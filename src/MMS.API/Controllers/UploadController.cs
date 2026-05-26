@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MMS.API.Authorization;
-using MMS.Application.DTOs.ImageFile;
+using MMS.Application.DTOs.Page;
+using MMS.Application.DTOs.Series;
+using MMS.Application.DTOs.User;
 using MMS.Application.Interfaces.Services;
 using System.Security.Claims;
 
@@ -33,13 +35,12 @@ public class UploadController : ControllerBase
 
     [HttpPost("page")]
     [Authorize]
+    [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadPage(
-        [FromForm] IFormFile file,
-        [FromQuery] Guid chapterId,
-        [FromQuery] int pageNumber,
+        [FromForm] UploadPageRequest request,
         CancellationToken ct)
     {
-        if (file == null || file.Length == 0)
+        if (request.File == null || request.File.Length == 0)
         {
             return BadRequest("File is empty.");
         }
@@ -48,8 +49,14 @@ public class UploadController : ControllerBase
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
         var userId = Guid.Parse(userIdStr);
 
-        using var stream = file.OpenReadStream();
-        var result = await _pageService.UploadPageVersionAsync(chapterId, pageNumber, stream, file.FileName, userId, ct);
+        using var stream = request.File.OpenReadStream();
+        var result = await _pageService.UploadPageVersionAsync(
+            request.ChapterId,
+            request.PageNumber,
+            stream,
+            request.File.FileName,
+            userId,
+            ct);
 
         if (!result.Succeeded)
         {
@@ -70,12 +77,12 @@ public class UploadController : ControllerBase
 
     [HttpPost("cover")]
     [Authorize(Policy = PolicyNames.CanManageSeries)]
+    [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadCover(
-        [FromForm] IFormFile file,
-        [FromQuery] Guid seriesId,
+        [FromForm] UploadCoverRequest request,
         CancellationToken ct)
     {
-        if (file == null || file.Length == 0)
+        if (request.File == null || request.File.Length == 0)
         {
             return BadRequest("File is empty.");
         }
@@ -85,16 +92,16 @@ public class UploadController : ControllerBase
         var userId = Guid.Parse(userIdStr);
 
         // Check if user is Editorial Board or has rights to manage the series
-        bool isAuthorized = User.IsInRole("Editorial Board") || await _seriesService.CanUserManageSeriesAsync(seriesId, userId);
+        bool isAuthorized = User.IsInRole("Editorial Board") || await _seriesService.CanUserManageSeriesAsync(request.SeriesId, userId);
         if (!isAuthorized) return Forbid();
 
-        var validationResult = await _fileValidator.ValidateImageAsync(file.OpenReadStream(), file.FileName, 10);
+        var validationResult = await _fileValidator.ValidateImageAsync(request.File.OpenReadStream(), request.File.FileName, 10);
         if (!validationResult.Succeeded) return BadRequest(validationResult.Message);
 
-        var folder = $"mms/series_{seriesId}";
+        var folder = $"mms/series_{request.SeriesId}";
         var hint = $"cover_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
 
-        using var stream = file.OpenReadStream();
+        using var stream = request.File.OpenReadStream();
         var uploadResult = await _imageStorageService.UploadImageAsync(stream, folder, hint, ct);
 
         if (!uploadResult.Succeeded) return StatusCode(500, uploadResult.Message);
@@ -105,22 +112,23 @@ public class UploadController : ControllerBase
 
     [HttpPost("avatar")]
     [Authorize]
+    [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadAvatar(
-        [FromForm] IFormFile file,
+        [FromForm] UploadAvatarRequest request,
         CancellationToken ct)
     {
-        if (file == null || file.Length == 0) return BadRequest("File is empty.");
+        if (request.File == null || request.File.Length == 0) return BadRequest("File is empty.");
 
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
 
-        var validationResult = await _fileValidator.ValidateImageAsync(file.OpenReadStream(), file.FileName, 5);
+        var validationResult = await _fileValidator.ValidateImageAsync(request.File.OpenReadStream(), request.File.FileName, 5);
         if (!validationResult.Succeeded) return BadRequest(validationResult.Message);
 
         var folder = "mms/avatars";
         var hint = $"{userIdStr}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
 
-        using var stream = file.OpenReadStream();
+        using var stream = request.File.OpenReadStream();
         var uploadResult = await _imageStorageService.UploadImageAsync(stream, folder, hint, ct);
 
         if (!uploadResult.Succeeded) return StatusCode(500, uploadResult.Message);

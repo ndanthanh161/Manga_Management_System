@@ -21,6 +21,7 @@ public static class DependencyInjection
         services.AddScoped<IChapterService, ChapterService>();
         services.AddScoped<IPageService, PageService>();
         services.AddScoped<IManuscriptService, ManuscriptService>();
+        services.AddScoped<ICandidateApplicationService, CandidateApplicationService>();
 
         return services;
     }

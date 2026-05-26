@@ -106,25 +106,41 @@ namespace MMS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("CandidateApplicationId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("FileUrl")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(1024)
+                        .HasColumnType("nvarchar(1024)");
 
-                    b.Property<Guid>("ManuscriptId")
+                    b.Property<Guid?>("ManuscriptId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("PublicId")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<long>("Size")
                         .HasColumnType("bigint");
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CandidateApplicationId");
 
                     b.HasIndex("ManuscriptId");
 
@@ -296,6 +312,54 @@ namespace MMS.Infrastructure.Migrations
                     b.HasIndex("SubmissionId");
 
                     b.ToTable("BoardVotes");
+                });
+
+            modelBuilder.Entity("MMS.Domain.Entities.CandidateApplication", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SeriesId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.HasIndex("SeriesId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CandidateApplications");
                 });
 
             modelBuilder.Entity("MMS.Domain.Entities.Chapter", b =>
@@ -949,11 +1013,17 @@ namespace MMS.Infrastructure.Migrations
 
             modelBuilder.Entity("MMS.Domain.Entities.Asset", b =>
                 {
+                    b.HasOne("MMS.Domain.Entities.CandidateApplication", "CandidateApplication")
+                        .WithMany("Assets")
+                        .HasForeignKey("CandidateApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
                     b.HasOne("MMS.Domain.Entities.Manuscript", "Manuscript")
                         .WithMany("Assets")
                         .HasForeignKey("ManuscriptId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("CandidateApplication");
 
                     b.Navigation("Manuscript");
                 });
@@ -997,6 +1067,32 @@ namespace MMS.Infrastructure.Migrations
                     b.Navigation("BoardMember");
 
                     b.Navigation("Submission");
+                });
+
+            modelBuilder.Entity("MMS.Domain.Entities.CandidateApplication", b =>
+                {
+                    b.HasOne("MMS.Domain.Entities.User", "ReviewedByUser")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("MMS.Domain.Entities.Series", "Series")
+                        .WithMany()
+                        .HasForeignKey("SeriesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MMS.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ReviewedByUser");
+
+                    b.Navigation("Series");
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("MMS.Domain.Entities.Chapter", b =>
@@ -1258,6 +1354,11 @@ namespace MMS.Infrastructure.Migrations
                         .HasForeignKey("UsersId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("MMS.Domain.Entities.CandidateApplication", b =>
+                {
+                    b.Navigation("Assets");
                 });
 
             modelBuilder.Entity("MMS.Domain.Entities.Chapter", b =>

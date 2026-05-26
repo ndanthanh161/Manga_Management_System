@@ -26,6 +26,7 @@ public class UnitOfWork : IUnitOfWork
     private IAssistantIncomeRepository? _assistantIncomes;
     private IBoardVoteRepository? _boardVotes;
     private INotificationRepository? _notifications;
+    private ICandidateApplicationRepository? _candidateApplications;
 
     public UnitOfWork(MmsDbContext context)
     {
@@ -50,6 +51,7 @@ public class UnitOfWork : IUnitOfWork
     public IAssistantIncomeRepository AssistantIncomes => _assistantIncomes ??= new AssistantIncomeRepository(_context);
     public IBoardVoteRepository BoardVotes => _boardVotes ??= new BoardVoteRepository(_context);
     public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_context);
+    public ICandidateApplicationRepository CandidateApplications => _candidateApplications ??= new CandidateApplicationRepository(_context);
 
 
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();

@@ -79,4 +79,70 @@ public class EmailService : IEmailService
 
         await client.SendMailAsync(mailMessage);
     }
+
+    public async Task SendApplicationApprovedAsync(string email, string fullName, string seriesTitle)
+    {
+        var smtpServer = _configuration["Email:SmtpServer"];
+        var port = int.Parse(_configuration["Email:Port"] ?? "587");
+        var senderEmail = _configuration["Email:SenderEmail"];
+        var senderName = _configuration["Email:SenderName"];
+        var password = _configuration["Email:Password"];
+
+        if (string.IsNullOrEmpty(senderEmail) || string.IsNullOrEmpty(password))
+        {
+            Console.WriteLine($"[Email Simulation - APPROVED] To: {email}, Name: {fullName}, Series: {seriesTitle}");
+            return;
+        }
+
+        using var client = new SmtpClient(smtpServer, port)
+        {
+            Credentials = new NetworkCredential(senderEmail, password),
+            EnableSsl = true
+        };
+
+        var mailMessage = new MailMessage
+        {
+            From = new MailAddress(senderEmail, senderName),
+            Subject = "🎉 Chúc mừng! Bản thảo của bạn đã được duyệt - Manga Management System",
+            Body = $"Kính gửi {fullName},\n\nBản thảo \"{seriesTitle}\" của bạn đã được duyệt thành công!\n\nTài khoản của bạn đã được kích hoạt với vai trò Mangaka. Hãy đăng nhập bằng Email và Password đã đăng ký để bắt đầu sáng tác.\n\nMột Biên tập viên (Tantou Editor) đã được phân công để hỗ trợ bạn.\n\nTrân trọng,\nBan biên tập Manga Management System.",
+            IsBodyHtml = false
+        };
+        mailMessage.To.Add(email);
+
+        await client.SendMailAsync(mailMessage);
+    }
+
+    public async Task SendApplicationRejectedAsync(string email, string fullName, string seriesTitle, string? reason)
+    {
+        var smtpServer = _configuration["Email:SmtpServer"];
+        var port = int.Parse(_configuration["Email:Port"] ?? "587");
+        var senderEmail = _configuration["Email:SenderEmail"];
+        var senderName = _configuration["Email:SenderName"];
+        var password = _configuration["Email:Password"];
+
+        if (string.IsNullOrEmpty(senderEmail) || string.IsNullOrEmpty(password))
+        {
+            Console.WriteLine($"[Email Simulation - REJECTED] To: {email}, Name: {fullName}, Series: {seriesTitle}, Reason: {reason ?? "N/A"}");
+            return;
+        }
+
+        using var client = new SmtpClient(smtpServer, port)
+        {
+            Credentials = new NetworkCredential(senderEmail, password),
+            EnableSsl = true
+        };
+
+        var reasonText = string.IsNullOrEmpty(reason) ? "Không đạt yêu cầu." : reason;
+
+        var mailMessage = new MailMessage
+        {
+            From = new MailAddress(senderEmail, senderName),
+            Subject = "Thông báo kết quả xét duyệt bản thảo - Manga Management System",
+            Body = $"Kính gửi {fullName},\n\nChúng tôi rất tiếc phải thông báo rằng bản thảo \"{seriesTitle}\" của bạn chưa được chấp nhận.\n\nLý do: {reasonText}\n\nBạn có thể gửi lại bản thảo mới trong tương lai. Chúng tôi luôn chào đón những tài năng mới.\n\nTrân trọng,\nBan biên tập Manga Management System.",
+            IsBodyHtml = false
+        };
+        mailMessage.To.Add(email);
+
+        await client.SendMailAsync(mailMessage);
+    }
 }

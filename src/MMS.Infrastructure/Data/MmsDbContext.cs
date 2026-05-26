@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using MMS.Domain.Entities;
-using MMS.Domain.Enums;
 
 namespace MMS.Infrastructure.Data;
 
@@ -31,6 +30,7 @@ public class MmsDbContext : DbContext
     public DbSet<AuditLog> AuditLogs { get; set; } = null!;
     public DbSet<AssistantSalary> AssistantSalaries { get; set; } = null!;
     public DbSet<AssistantIncome> AssistantIncomes { get; set; } = null!;
+    public DbSet<CandidateApplication> CandidateApplications { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -82,11 +82,37 @@ public class MmsDbContext : DbContext
             .OnDelete(DeleteBehavior.Cascade);
 
         // Manuscript -> Asset
-        modelBuilder.Entity<Manuscript>()
-            .HasMany(m => m.Assets)
-            .WithOne(a => a.Manuscript)
-            .HasForeignKey(a => a.ManuscriptId)
-            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<Asset>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+
+            entity.Property(a => a.Name)
+                .HasMaxLength(256)
+                .IsRequired();
+
+            entity.Property(a => a.Type)
+                .HasMaxLength(64)
+                .IsRequired();
+
+            entity.Property(a => a.FileUrl)
+                .HasMaxLength(1024)
+                .IsRequired();
+
+            entity.Property(a => a.PublicId)
+                .HasMaxLength(256);
+
+            // Manuscript relation
+            entity.HasOne(a => a.Manuscript)
+                .WithMany(m => m.Assets)
+                .HasForeignKey(a => a.ManuscriptId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // CandidateApplication relation
+            entity.HasOne(a => a.CandidateApplication)
+                .WithMany(c => c.Assets)
+                .HasForeignKey(a => a.CandidateApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
 
         // Submission -> Series
         modelBuilder.Entity<Submission>()
@@ -339,5 +365,43 @@ public class MmsDbContext : DbContext
             entity.HasIndex(e => new { e.PageId, e.Status });
         });
 
+        // CandidateApplication configurations
+        modelBuilder.Entity<CandidateApplication>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.FullName)
+                .HasMaxLength(256)
+                .IsRequired();
+
+            entity.Property(e => e.ReviewNote)
+                .HasMaxLength(2000);
+
+            entity.Property(e => e.Status)
+                .HasConversion<string>()
+                .HasMaxLength(32);
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Series)
+                .WithMany()
+                .HasForeignKey(e => e.SeriesId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.ReviewedByUser)
+                .WithMany()
+                .HasForeignKey(e => e.ReviewedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasMany(e => e.Assets)
+                .WithOne(a => a.CandidateApplication)
+                .HasForeignKey(a => a.CandidateApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(e => e.Status);
+        });
     }
 }

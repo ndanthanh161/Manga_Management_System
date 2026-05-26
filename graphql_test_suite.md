@@ -64,7 +64,7 @@ mutation {
 ### Đăng nhập Mangaka:
 ```graphql
 mutation {
-  login(request: { username: "mangaka_test", password: "Password123!" }) {
+  login(request: { email: "mangaka_test", password: "Password123!" }) {
     succeeded
     message
     errors
@@ -80,7 +80,7 @@ mutation {
 ### Đăng nhập Assistant:
 ```graphql
 mutation {
-  login(request: { username: "assistant_test", password: "Password123!" }) {
+  login(request: { email: "assistant_test", password: "Password123!" }) {
     succeeded
     message
     errors
@@ -479,5 +479,156 @@ mutation AddSeriesRanking {
 ```graphql
 mutation TriggerSurvivalCheck {
   triggerSurvivalCheck
+}
+```
+
+---
+
+## 7. TUYỂN DỤNG MANGAKA & ĐƠN ỨNG TUYỂN (CANDIDATE APPLICATION)
+
+Mục này hướng dẫn test luồng tuyển dụng Mangaka mới. Tác giả vô danh gửi đơn ứng tuyển (kèm Series và các file Bản thảo), sau đó Admin thực hiện xét duyệt đơn.
+
+### Ứng viên gửi đơn ứng tuyển (REST API - Public - Không cần Token):
+Sử dụng RESTful API với định dạng `multipart/form-data` để gửi đơn ứng tuyển và upload nhiều file bản thảo (Assets):
+
+- **HTTP Method**: `POST`
+- **Endpoint**: `https://localhost:7129/api/candidate-application/submit` (hoặc cổng HTTP tương ứng của bạn)
+- **Headers**: `Content-Type: multipart/form-data`
+- **Body (form-data)**:
+  - `Email`: `candidate@example.com`
+  - `Password`: `Password123!`
+  - `FullName`: `Nguyễn Văn Nghệ`
+  - `SeriesTitle`: `Hành Trình Kỳ Thú`
+  - `Files`: `[Chọn 1 hoặc nhiều File bản thảo để tải lên (ví dụ: .png, .jpg)]`
+
+#### Ví dụ cURL:
+```bash
+curl -X POST "https://localhost:7129/api/candidate-application/submit" \
+  -H "accept: */*" \
+  -H "Content-Type: multipart/form-data" \
+  -F "Email=candidate@example.com" \
+  -F "Password=Password123!" \
+  -F "FullName=Nguyễn Văn Nghệ" \
+  -F "SeriesTitle=Hành Trình Kỳ Thú" \
+  -F "Files=@/path/to/page1.png" \
+  -F "Files=@/path/to/page2.png"
+```
+
+### Admin lấy danh sách đơn đang chờ duyệt (Token Admin):
+```graphql
+query GetPendingApplications {
+  pendingApplications {
+    succeeded
+    message
+    errors
+    data {
+      id
+      fullName
+      email
+      seriesTitle
+      status
+      createdAt
+      assets {
+        id
+        name
+        type
+        fileUrl
+        size
+      }
+    }
+  }
+}
+```
+*(Lưu lại `id` của đơn ứng tuyển cần xử lý).*
+
+### Admin xem chi tiết một đơn ứng tuyển (Token Admin):
+```graphql
+query GetApplicationById($id: UUID!) {
+  applicationById(id: $id) {
+    succeeded
+    message
+    errors
+    data {
+      id
+      fullName
+      email
+      seriesTitle
+      status
+      reviewNote
+      createdAt
+      reviewedAt
+      assets {
+        id
+        name
+        type
+        fileUrl
+        size
+        uploadedAt
+      }
+    }
+  }
+}
+```
+
+### Admin duyệt đơn ứng tuyển - Chấp nhận (Token Admin):
+*Khi duyệt đơn thành công: Tài khoản được kích hoạt, gán role Mangaka, chuyển Series nháp sang trạng thái Ongoing và liên kết với Biên tập viên (Tantou Editor).*
+```graphql
+mutation ReviewApplication($request: ReviewApplicationRequestInput!) {
+  reviewApplication(request: $request) {
+    succeeded
+    message
+    errors
+    data {
+      id
+      fullName
+      email
+      seriesTitle
+      status
+      reviewNote
+      reviewedAt
+    }
+  }
+}
+```
+**GraphQL Variables (JSON):**
+```json
+{
+  "request": {
+    "applicationId": "ĐIỀN_ID_ĐƠN_ỨNG_TUYỂN_VÀO_ĐÂY",
+    "isApproved": true,
+    "reviewNote": "Nét vẽ tốt, cốt truyện cuốn hút. Duyệt làm Mangaka chính thức của hệ thống.",
+    "tantouEditorId": "ĐIỀN_ID_TANTOU_EDITOR_VÀO_ĐÂY"
+  }
+}
+```
+
+### Admin duyệt đơn ứng tuyển - Từ chối (Token Admin):
+*Khi từ chối đơn: Xóa tài khoản pending và tác phẩm nháp khỏi DB, xóa file bản thảo khỏi Cloudinary và gửi email thông báo từ chối.*
+```graphql
+mutation ReviewApplication($request: ReviewApplicationRequestInput!) {
+  reviewApplication(request: $request) {
+    succeeded
+    message
+    errors
+    data {
+      id
+      fullName
+      email
+      seriesTitle
+      status
+      reviewNote
+      reviewedAt
+    }
+  }
+}
+```
+**GraphQL Variables (JSON):**
+```json
+{
+  "request": {
+    "applicationId": "ĐIỀN_ID_ĐƠN_ỨNG_TUYỂN_VÀO_ĐÂY",
+    "isApproved": false,
+    "reviewNote": "Nét vẽ chưa đạt tiêu chuẩn nghệ thuật của nhà xuất bản. Hãy cố gắng luyện tập thêm."
+  }
 }
 ```

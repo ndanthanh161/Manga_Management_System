@@ -22,6 +22,7 @@ public interface IUnitOfWork : IDisposable
     IAssistantIncomeRepository AssistantIncomes { get; }
     IBoardVoteRepository BoardVotes { get; }
     INotificationRepository Notifications { get; }
+    ICandidateApplicationRepository CandidateApplications { get; }
 
     Task<int> SaveChangesAsync();
 }

@@ -1,4 +1,4 @@
-﻿using Mapster;
+using Mapster;
 using Microsoft.OpenApi;
 using MMS.API;
 using MMS.API.Middleware;
@@ -70,7 +70,6 @@ try
                 Name = "MMS Team"
             }
         });
-
         options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
         {
             Description = "JWT Authorization header using Bearer scheme",

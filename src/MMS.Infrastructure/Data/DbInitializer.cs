@@ -1,8 +1,7 @@
-using Microsoft.Extensions.DependencyInjection;
-using MMS.Domain.Entities;
-using MMS.Application.Interfaces;
-using MMS.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using MMS.Application.Interfaces;
+using MMS.Domain.Entities;
 
 namespace MMS.Infrastructure.Data;
 
@@ -33,12 +32,14 @@ public static class DbInitializer
         if (!await context.Users.AnyAsync(u => u.Email == "admin@mms.com"))
         {
             var adminRole = await context.Roles.FirstAsync(r => r.Name == "Admin");
+
             var admin = new User
             {
                 Id = Guid.NewGuid(),
                 Username = "admin",
                 Email = "admin@mms.com",
                 PasswordHash = passwordHasher.Hash("Admin@123"),
+                IsActive = true,
                 Roles = new List<Role> { adminRole }
             };
 
