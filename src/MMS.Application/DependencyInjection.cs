@@ -23,6 +23,9 @@ public static class DependencyInjection
         services.AddScoped<IManuscriptService, ManuscriptService>();
         services.AddScoped<ICandidateApplicationService, CandidateApplicationService>();
 
+        services.AddMediatR(cfg =>
+            cfg.RegisterServicesFromAssembly(typeof(DependencyInjection).Assembly));
+
         return services;
     }
 }

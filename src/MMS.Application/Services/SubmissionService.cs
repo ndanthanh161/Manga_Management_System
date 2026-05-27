@@ -6,17 +6,22 @@ using MMS.Application.DTOs.Submission;
 using MMS.Domain.Entities;
 using MMS.Domain.Enums;
 
+using MMS.Domain.Events.BoardVoting;
+using MMS.Domain.Events.Submissions;
+
 namespace MMS.Application.Services;
 
 public class SubmissionService : ISubmissionService
 {
     private readonly IUnitOfWork _uow;
     private readonly IEmailService _emailService;
+    private readonly IDomainEventPublisher _eventPublisher;
 
-    public SubmissionService(IUnitOfWork uow, IEmailService emailService)
+    public SubmissionService(IUnitOfWork uow, IEmailService emailService, IDomainEventPublisher eventPublisher)
     {
         _uow = uow;
         _emailService = emailService;
+        _eventPublisher = eventPublisher;
     }
 
     public async Task<Result<SubmissionResponse>> CreateAsync(Guid? mangakaId, CreateSubmissionRequest request)
@@ -155,6 +160,17 @@ public class SubmissionService : ISubmissionService
             await _uow.BoardVotes.AddAsync(vote);
             await _uow.SaveChangesAsync();
 
+            var votesList = await _uow.BoardVotes.FindAsync(v => v.SubmissionId == submissionId);
+            int approveCount = votesList.Count(v => v.VoteType == VoteType.Approve);
+            int rejectCount = votesList.Count(v => v.VoteType == VoteType.Reject);
+
+            await _eventPublisher.PublishAsync(new BoardVoteCastEvent(
+                submissionId,
+                approveCount,
+                rejectCount,
+                votesList.Count()
+            ));
+
             var updated = await _uow.Submissions.GetWithDetailsAsync(submissionId);
             return Result<SubmissionResponse>.Success(updated!.Adapt<SubmissionResponse>());
         }
@@ -243,6 +259,19 @@ public class SubmissionService : ISubmissionService
 
             await _uow.SaveChangesAsync();
 
+            if (series.TantouEditorId.HasValue)
+            {
+                await _eventPublisher.PublishAsync(new SubmissionStatusChangedEvent(
+                    submission.Id,
+                    submission.SeriesId,
+                    WorkflowStatus.Draft,
+                    WorkflowStatus.Submitted,
+                    userId,
+                    series.TantouEditorId.Value,
+                    "Mangaka nộp bản thảo"
+                ));
+            }
+
             var created = await _uow.Submissions.GetWithDetailsAsync(submission.Id);
             return Result<SubmissionResponse>.Success(created!.Adapt<SubmissionResponse>());
         }
@@ -294,6 +323,16 @@ public class SubmissionService : ISubmissionService
             await _uow.SubmissionTransitions.AddAsync(transition);
             await _uow.SaveChangesAsync();
 
+            await _eventPublisher.PublishAsync(new SubmissionStatusChangedEvent(
+                submission.Id,
+                submission.SeriesId,
+                oldStatus,
+                WorkflowStatus.UnderTantouReview,
+                tantouId,
+                submission.MangakaId ?? Guid.Empty,
+                "Tantou đã nhận bản thảo để thẩm định"
+            ));
+
             var updated = await _uow.Submissions.GetWithDetailsAsync(submissionId);
             return Result<SubmissionResponse>.Success(updated!.Adapt<SubmissionResponse>());
         }
@@ -337,6 +376,16 @@ public class SubmissionService : ISubmissionService
             _uow.Submissions.Update(submission);
             await _uow.SubmissionTransitions.AddAsync(transition);
             await _uow.SaveChangesAsync();
+
+            await _eventPublisher.PublishAsync(new SubmissionStatusChangedEvent(
+                submission.Id,
+                submission.SeriesId,
+                oldStatus,
+                WorkflowStatus.ForwardedToBoard,
+                tantouId,
+                submission.MangakaId ?? Guid.Empty,
+                string.IsNullOrWhiteSpace(comment) ? "Gửi lên Hội đồng Biên tập xem xét" : comment
+            ));
 
             var updated = await _uow.Submissions.GetWithDetailsAsync(submissionId);
             return Result<SubmissionResponse>.Success(updated!.Adapt<SubmissionResponse>());
@@ -388,6 +437,16 @@ public class SubmissionService : ISubmissionService
             _uow.Submissions.Update(submission);
             await _uow.SubmissionTransitions.AddAsync(transition);
             await _uow.SaveChangesAsync();
+
+            await _eventPublisher.PublishAsync(new SubmissionStatusChangedEvent(
+                submission.Id,
+                submission.SeriesId,
+                oldStatus,
+                WorkflowStatus.ReturnedForRevision,
+                tantouId,
+                submission.MangakaId ?? Guid.Empty,
+                string.IsNullOrWhiteSpace(comment) ? "Yêu cầu chỉnh sửa lại bản thảo" : comment
+            ));
 
             var updated = await _uow.Submissions.GetWithDetailsAsync(submissionId);
             return Result<SubmissionResponse>.Success(updated!.Adapt<SubmissionResponse>());
@@ -465,6 +524,16 @@ public class SubmissionService : ISubmissionService
             _uow.Submissions.Update(submission);
             await _uow.SubmissionTransitions.AddAsync(transition);
             await _uow.SaveChangesAsync();
+
+            await _eventPublisher.PublishAsync(new SubmissionStatusChangedEvent(
+                submission.Id,
+                submission.SeriesId,
+                oldStatus,
+                decision,
+                actorId,
+                submission.MangakaId ?? Guid.Empty,
+                string.IsNullOrWhiteSpace(comment) ? $"Quyết định của Hội đồng: {decision}" : comment
+            ));
 
             var updated = await _uow.Submissions.GetWithDetailsAsync(submissionId);
             return Result<SubmissionResponse>.Success(updated!.Adapt<SubmissionResponse>());

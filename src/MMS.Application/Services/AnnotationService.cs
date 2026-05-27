@@ -8,15 +8,19 @@ using MMS.Application.Validators;
 using MMS.Domain.Entities;
 using MMS.Domain.Enums;
 
+using MMS.Domain.Events.Annotations;
+
 namespace MMS.Application.Services;
 
 public class AnnotationService : IAnnotationService
 {
     private readonly IUnitOfWork _uow;
+    private readonly IDomainEventPublisher _eventPublisher;
 
-    public AnnotationService(IUnitOfWork uow)
+    public AnnotationService(IUnitOfWork uow, IDomainEventPublisher eventPublisher)
     {
         _uow = uow;
+        _eventPublisher = eventPublisher;
     }
 
     public async Task<Result<AnnotationResponse>> CreateAsync(Guid userId, CreateAnnotationRequest request)
@@ -33,10 +37,6 @@ public class AnnotationService : IAnnotationService
             return Result<AnnotationResponse>.Failure("PageNotCurrentVersion", "Annotations can only be added to the current version of a page.");
 
         var chapter = await _uow.Chapters.GetByIdAsync(page.ChapterId);
-        if (chapter != null)
-        {
-            
-        }
 
         var annotation = new Annotation
         {
@@ -55,6 +55,21 @@ public class AnnotationService : IAnnotationService
 
         await _uow.Annotations.AddAsync(annotation);
         await _uow.SaveChangesAsync();
+
+        if (chapter != null)
+        {
+            await _eventPublisher.PublishAsync(new AnnotationCreatedEvent(
+                annotation.Id,
+                annotation.PageId,
+                chapter.Id,
+                userId,
+                annotation.Category.ToString(),
+                annotation.X,
+                annotation.Y,
+                annotation.Width,
+                annotation.Height
+            ));
+        }
 
         var response = await GetAnnotationResponseAsync(annotation.Id);
         return Result<AnnotationResponse>.Success(response!);
@@ -76,6 +91,18 @@ public class AnnotationService : IAnnotationService
 
         _uow.Annotations.Update(annotation);
         await _uow.SaveChangesAsync();
+
+        var page = await _uow.Pages.GetByIdAsync(annotation.PageId);
+        if (page != null)
+        {
+            await _eventPublisher.PublishAsync(new AnnotationStatusChangedEvent(
+                annotation.Id,
+                page.ChapterId,
+                AnnotationStatus.Open,
+                AnnotationStatus.Resolved,
+                userId
+            ));
+        }
 
         var response = await GetAnnotationResponseAsync(annotation.Id);
         return Result<AnnotationResponse>.Success(response!);
@@ -109,6 +136,18 @@ public class AnnotationService : IAnnotationService
 
         _uow.Annotations.Update(annotation);
         await _uow.SaveChangesAsync();
+
+        var page = await _uow.Pages.GetByIdAsync(annotation.PageId);
+        if (page != null)
+        {
+            await _eventPublisher.PublishAsync(new AnnotationStatusChangedEvent(
+                annotation.Id,
+                page.ChapterId,
+                AnnotationStatus.Resolved,
+                annotation.Status,
+                userId
+            ));
+        }
 
         var response = await GetAnnotationResponseAsync(annotation.Id);
         return Result<AnnotationResponse>.Success(response!);

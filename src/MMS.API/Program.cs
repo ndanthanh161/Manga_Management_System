@@ -7,6 +7,10 @@ using MMS.Application.Common;
 using MMS.Infrastructure;
 using MMS.Infrastructure.Data;
 using Serilog;
+using MMS.API.Hubs;
+using MMS.API.Services;
+using MMS.Application.Interfaces;
+
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -35,6 +39,19 @@ try
     MappingConfig.Configure();
     builder.Services.AddApplication(builder.Configuration);
     builder.Services.AddInfrastructure(builder.Configuration);
+
+    // SignalR
+    builder.Services.AddSignalR(options =>
+    {
+        options.EnableDetailedErrors = builder.Environment.IsDevelopment();
+    });
+
+    // MediatR — scan EventHandlers từ MMS.API assembly
+    builder.Services.AddMediatR(cfg =>
+        cfg.RegisterServicesFromAssembly(typeof(Program).Assembly));
+
+    // Domain Event Publisher
+    builder.Services.AddScoped<IDomainEventPublisher, DomainEventPublisher>();
 
     // 2. Authentication & Authorization
     builder.Services.AddJwtAuthentication(builder.Configuration);
@@ -118,6 +135,11 @@ try
     app.UseCors("AllowNextJs");
     app.UseAuthentication();
     app.UseAuthorization();
+
+    app.MapHub<NotificationHub>("/hub/notifications");
+    app.MapHub<AnnotationHub>("/hub/annotations");
+    app.MapHub<BoardVotingHub>("/hub/boardvoting");
+    app.MapHub<ChapterProgressHub>("/hub/progress");
 
     app.MapGraphQL();
     app.MapControllers();

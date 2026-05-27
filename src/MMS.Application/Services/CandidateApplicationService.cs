@@ -6,6 +6,8 @@ using MMS.Domain.Entities;
 using MMS.Domain.Enums;
 using Mapster;
 
+using MMS.Domain.Events.BoardVoting;
+
 namespace MMS.Application.Services;
 
 public class CandidateApplicationService : ICandidateApplicationService
@@ -14,17 +16,20 @@ public class CandidateApplicationService : ICandidateApplicationService
     private readonly IPasswordHasher _passwordHasher;
     private readonly IImageStorageService _imageStorageService;
     private readonly IEmailService _emailService;
+    private readonly IDomainEventPublisher _eventPublisher;
 
     public CandidateApplicationService(
         IUnitOfWork unitOfWork,
         IPasswordHasher passwordHasher,
         IImageStorageService imageStorageService,
-        IEmailService emailService)
+        IEmailService emailService,
+        IDomainEventPublisher eventPublisher)
     {
         _unitOfWork = unitOfWork;
         _passwordHasher = passwordHasher;
         _imageStorageService = imageStorageService;
         _emailService = emailService;
+        _eventPublisher = eventPublisher;
     }
 
     public async Task<Result<CandidateApplicationDto>> SubmitApplicationAsync(
@@ -128,6 +133,17 @@ public class CandidateApplicationService : ICandidateApplicationService
         };
         await _unitOfWork.ApplicationVotes.AddAsync(newVote);
         await _unitOfWork.SaveChangesAsync();
+
+        var currentVotes = await _unitOfWork.ApplicationVotes.FindAsync(v => v.ApplicationId == applicationId);
+        int currentApprove = currentVotes.Count(v => v.VoteType == VoteType.Approve);
+        int currentReject = currentVotes.Count(v => v.VoteType == VoteType.Reject);
+
+        await _eventPublisher.PublishAsync(new ApplicationVoteCastEvent(
+            applicationId,
+            currentApprove,
+            currentReject,
+            currentVotes.Count()
+        ));
 
         // 5. Tính tổng số EB members trong hệ thống
         var allEbMembers = await _unitOfWork.Users.FindAsync(u =>
