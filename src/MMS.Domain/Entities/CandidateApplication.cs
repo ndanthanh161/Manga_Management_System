@@ -19,8 +19,9 @@ public class CandidateApplication
     public Guid SeriesId { get; set; }
     public Series Series { get; set; } = null!;
 
-    // FK → Admin who reviewed
-    public Guid? ReviewedByUserId { get; set; }
-    public User? ReviewedByUser { get; set; }
+    // FK → EB member whose vote triggered approval
+    public Guid? ApprovedByUserId { get; set; }
+    public User? ApprovedByUser { get; set; }
     public ICollection<Asset> Assets { get; set; } = new List<Asset>();
+    public ICollection<ApplicationVote> ApplicationVotes { get; set; } = new List<ApplicationVote>();
 }

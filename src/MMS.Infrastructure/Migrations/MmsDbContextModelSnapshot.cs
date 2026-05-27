@@ -100,6 +100,42 @@ namespace MMS.Infrastructure.Migrations
                     b.ToTable("Annotations");
                 });
 
+            modelBuilder.Entity("MMS.Domain.Entities.ApplicationVote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BoardMemberId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ProposedTantouId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("VoteType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BoardMemberId");
+
+                    b.HasIndex("ApplicationId", "BoardMemberId")
+                        .IsUnique();
+
+                    b.ToTable("ApplicationVotes");
+                });
+
             modelBuilder.Entity("MMS.Domain.Entities.Asset", b =>
                 {
                     b.Property<Guid>("Id")
@@ -320,6 +356,9 @@ namespace MMS.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -335,9 +374,6 @@ namespace MMS.Infrastructure.Migrations
                     b.Property<DateTime?>("ReviewedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<Guid?>("ReviewedByUserId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<Guid>("SeriesId")
                         .HasColumnType("uniqueidentifier");
 
@@ -351,7 +387,7 @@ namespace MMS.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ReviewedByUserId");
+                    b.HasIndex("ApprovedByUserId");
 
                     b.HasIndex("SeriesId");
 
@@ -742,6 +778,42 @@ namespace MMS.Infrastructure.Migrations
                     b.ToTable("Series");
                 });
 
+            modelBuilder.Entity("MMS.Domain.Entities.SeriesVote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("BoardMemberId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Comment")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ProposedTantouId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SeriesId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("VoteType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BoardMemberId");
+
+                    b.HasIndex("SeriesId", "BoardMemberId")
+                        .IsUnique();
+
+                    b.ToTable("SeriesVotes");
+                });
+
             modelBuilder.Entity("MMS.Domain.Entities.Submission", b =>
                 {
                     b.Property<Guid>("Id")
@@ -830,10 +902,6 @@ namespace MMS.Infrastructure.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("EditorialPosition")
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
 
                     b.Property<string>("Email")
                         .IsRequired()
@@ -1011,6 +1079,25 @@ namespace MMS.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("MMS.Domain.Entities.ApplicationVote", b =>
+                {
+                    b.HasOne("MMS.Domain.Entities.CandidateApplication", "Application")
+                        .WithMany("ApplicationVotes")
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MMS.Domain.Entities.User", "BoardMember")
+                        .WithMany()
+                        .HasForeignKey("BoardMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Application");
+
+                    b.Navigation("BoardMember");
+                });
+
             modelBuilder.Entity("MMS.Domain.Entities.Asset", b =>
                 {
                     b.HasOne("MMS.Domain.Entities.CandidateApplication", "CandidateApplication")
@@ -1071,9 +1158,9 @@ namespace MMS.Infrastructure.Migrations
 
             modelBuilder.Entity("MMS.Domain.Entities.CandidateApplication", b =>
                 {
-                    b.HasOne("MMS.Domain.Entities.User", "ReviewedByUser")
+                    b.HasOne("MMS.Domain.Entities.User", "ApprovedByUser")
                         .WithMany()
-                        .HasForeignKey("ReviewedByUserId")
+                        .HasForeignKey("ApprovedByUserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("MMS.Domain.Entities.Series", "Series")
@@ -1088,7 +1175,7 @@ namespace MMS.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("ReviewedByUser");
+                    b.Navigation("ApprovedByUser");
 
                     b.Navigation("Series");
 
@@ -1259,6 +1346,25 @@ namespace MMS.Infrastructure.Migrations
                     b.Navigation("TantouEditor");
                 });
 
+            modelBuilder.Entity("MMS.Domain.Entities.SeriesVote", b =>
+                {
+                    b.HasOne("MMS.Domain.Entities.User", "BoardMember")
+                        .WithMany()
+                        .HasForeignKey("BoardMemberId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MMS.Domain.Entities.Series", "Series")
+                        .WithMany()
+                        .HasForeignKey("SeriesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BoardMember");
+
+                    b.Navigation("Series");
+                });
+
             modelBuilder.Entity("MMS.Domain.Entities.Submission", b =>
                 {
                     b.HasOne("MMS.Domain.Entities.User", "AssignedTantou")
@@ -1358,6 +1464,8 @@ namespace MMS.Infrastructure.Migrations
 
             modelBuilder.Entity("MMS.Domain.Entities.CandidateApplication", b =>
                 {
+                    b.Navigation("ApplicationVotes");
+
                     b.Navigation("Assets");
                 });
 

@@ -8,7 +8,7 @@ namespace MMS.API.GraphQL;
 [ExtendObjectType("Mutation")]
 public class AnnotationMutations
 {
-    [Authorize(Roles = new[] { "Tantou", "Mangaka", "EditorialBoard" })]
+    [Authorize(Roles = new[] { "Tantou Editor", "Mangaka", "Editorial Board" })]
     public async Task<AnnotationResponse> CreateAnnotation(
         [Service] IAnnotationService annotationService,
         ClaimsPrincipal claimsPrincipal,
@@ -34,7 +34,7 @@ public class AnnotationMutations
         return result.Data!;
     }
 
-    [Authorize(Roles = new[] { "Tantou", "EditorialBoard" })]
+    [Authorize(Roles = new[] { "Tantou Editor", "Editorial Board" })]
     public async Task<AnnotationResponse> ReviewAnnotation(
         [Service] IAnnotationService annotationService,
         ClaimsPrincipal claimsPrincipal,

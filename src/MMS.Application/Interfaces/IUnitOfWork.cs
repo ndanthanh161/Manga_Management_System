@@ -1,4 +1,5 @@
 using MMS.Application.Interfaces.Repositories;
+using MMS.Domain.Entities;
 
 namespace MMS.Application.Interfaces;
 
@@ -23,6 +24,8 @@ public interface IUnitOfWork : IDisposable
     IBoardVoteRepository BoardVotes { get; }
     INotificationRepository Notifications { get; }
     ICandidateApplicationRepository CandidateApplications { get; }
+    IGenericRepository<ApplicationVote> ApplicationVotes { get; }
+    IGenericRepository<SeriesVote> SeriesVotes { get; }
 
     Task<int> SaveChangesAsync();
 }

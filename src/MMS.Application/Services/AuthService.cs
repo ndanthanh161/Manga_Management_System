@@ -66,7 +66,7 @@ public class AuthService : IAuthService
         {
             if (!invitingUserRoles.Contains("Admin") &&
                 !invitingUserRoles.Contains("Editor") &&
-                !invitingUserRoles.Contains("EditorialBoard"))
+                !invitingUserRoles.Contains("Editorial Board"))
             {
                 return Result<UserInviteDto>.Failure("FORBIDDEN", "Bạn không có quyền mời Mangaka. Chỉ Admin hoặc Editor mới có quyền này.", 403);
             }

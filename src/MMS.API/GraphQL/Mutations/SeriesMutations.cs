@@ -1,17 +1,17 @@
 using MMS.Application.Interfaces.Services;
 using HotChocolate.Authorization;
 using MMS.Application.DTOs.Series;
+using MMS.Domain.Enums;
 using System.Security.Claims;
 using MMS.Application.Common;
-using System;
-using System.Threading.Tasks;
 using R = MMS.Application.Common;
+
 namespace MMS.API.GraphQL;
 
 [ExtendObjectType("Mutation")]
 public class SeriesMutations
 {
-    [Authorize(Roles = new[] { "Admin", "Editor" })]
+    [Authorize(Roles = new[] { "Editorial Board" })]
     public async Task<SeriesRankingResponse> AddSeriesRanking(
         [Service] ISeriesService seriesService,
         Guid seriesId,
@@ -21,7 +21,7 @@ public class SeriesMutations
         return await seriesService.AddRankingAsync(seriesId, position, period);
     }
 
-    [Authorize(Roles = new[] { "Admin", "Editor" })]
+    [Authorize(Roles = new[] { "Editorial Board" })]
     public async Task<bool> TriggerSurvivalCheck(
         [Service] ISeriesService seriesService)
     {
@@ -29,16 +29,16 @@ public class SeriesMutations
         return true;
     }
 
-    [Authorize(Roles = new[] { "Admin" })]
-    public async Task<R.Result<SeriesResponse>> ReviewSeries(
+    [Authorize(Roles = new[] { "Editorial Board" })]
+    public async Task<R.Result<SeriesResponse>> VoteSeries(
         [Service] ISeriesService seriesService,
-        ReviewSeriesRequest request,
+        Guid seriesId,
+        VoteType vote,
+        Guid? proposedTantouId,
+        string? comment,
         ClaimsPrincipal claimsPrincipal)
     {
-        var userIdString = claimsPrincipal.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userIdString))
-            return R.Result<SeriesResponse>.Failure("UNAUTHORIZED", "Unauthorized", 401);
-
-        return await seriesService.ReviewSeriesAsync(request, Guid.Parse(userIdString));
+        var userId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
+        return await seriesService.VoteSeriesAsync(seriesId, userId, vote, proposedTantouId, comment);
     }
 }

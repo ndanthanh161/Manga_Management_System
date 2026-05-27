@@ -1,5 +1,6 @@
 using MMS.Application.Interfaces;
 using MMS.Application.Interfaces.Repositories;
+using MMS.Domain.Entities;
 using MMS.Infrastructure.Data;
 using MMS.Infrastructure.Repositories;
 
@@ -27,6 +28,8 @@ public class UnitOfWork : IUnitOfWork
     private IBoardVoteRepository? _boardVotes;
     private INotificationRepository? _notifications;
     private ICandidateApplicationRepository? _candidateApplications;
+    private IGenericRepository<ApplicationVote>? _applicationVotes;
+    private IGenericRepository<SeriesVote>? _seriesVotes;
 
     public UnitOfWork(MmsDbContext context)
     {
@@ -52,7 +55,8 @@ public class UnitOfWork : IUnitOfWork
     public IBoardVoteRepository BoardVotes => _boardVotes ??= new BoardVoteRepository(_context);
     public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_context);
     public ICandidateApplicationRepository CandidateApplications => _candidateApplications ??= new CandidateApplicationRepository(_context);
-
+    public IGenericRepository<ApplicationVote> ApplicationVotes => _applicationVotes ??= new GenericRepository<ApplicationVote>(_context);
+    public IGenericRepository<SeriesVote> SeriesVotes => _seriesVotes ??= new GenericRepository<SeriesVote>(_context);
 
     public async Task<int> SaveChangesAsync() => await _context.SaveChangesAsync();
 

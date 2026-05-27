@@ -23,7 +23,7 @@ public class SubmissionMutations
         return result.Data!;
     }
 
-    [Authorize(Roles = new[] { "Admin", "Editor", "EditorialBoard", "Tantou" })]
+    [Authorize(Roles = new[] { "Editorial Board", "Tantou Editor" })]
     public async Task<SubmissionResponse> VoteSubmission(
         [Service] ISubmissionService submissionService,
         ClaimsPrincipal claimsPrincipal,
@@ -40,7 +40,7 @@ public class SubmissionMutations
         return result.Data!;
     }
 
-    [Authorize(Roles = new[] { "Admin", "Editor", "EditorialBoard", "Tantou" })]
+    [Authorize(Roles = new[] { "Editorial Board", "Tantou Editor" })]
     public async Task<SubmissionResponse> ResolveSubmission(
         [Service] ISubmissionService submissionService,
         ClaimsPrincipal claimsPrincipal,
@@ -73,7 +73,7 @@ public class SubmissionMutations
         return result.Data!;
     }
 
-    [Authorize(Roles = new[] { "Tantou", "Admin", "Editor" })]
+    [Authorize(Roles = new[] { "Tantou Editor", "Editorial Board" })]
     public async Task<SubmissionResponse> AcceptSubmission(
         [Service] ISubmissionService submissionService,
         ClaimsPrincipal claimsPrincipal,
@@ -88,7 +88,7 @@ public class SubmissionMutations
         return result.Data!;
     }
 
-    [Authorize(Roles = new[] { "Tantou", "Admin", "Editor" })]
+    [Authorize(Roles = new[] { "Tantou Editor", "Editorial Board" })]
     public async Task<SubmissionResponse> ForwardToBoard(
         [Service] ISubmissionService submissionService,
         ClaimsPrincipal claimsPrincipal,
@@ -104,7 +104,7 @@ public class SubmissionMutations
         return result.Data!;
     }
 
-    [Authorize(Roles = new[] { "Tantou", "Admin", "Editor" })]
+    [Authorize(Roles = new[] { "Tantou Editor", "Editorial Board" })]
     public async Task<SubmissionResponse> ReturnForRevision(
         [Service] ISubmissionService submissionService,
         ClaimsPrincipal claimsPrincipal,
@@ -120,7 +120,7 @@ public class SubmissionMutations
         return result.Data!;
     }
 
-    [Authorize(Roles = new[] { "EditorialBoard", "Admin" })]
+    [Authorize(Roles = new[] { "Editorial Board", "Editorial Board" })]
     public async Task<SubmissionResponse> FinalizeBoardDecision(
         [Service] ISubmissionService submissionService,
         ClaimsPrincipal claimsPrincipal,

@@ -47,7 +47,7 @@ public class CandidateApplicationMapping : IRegister
             .Ignore(dest => dest.SeriesId)
             .Ignore(dest => dest.User)
             .Ignore(dest => dest.Series)
-            .Ignore(dest => dest.ReviewedByUserId!)
-            .Ignore(dest => dest.ReviewedByUser!);
+            .Ignore(dest => dest.ApprovedByUserId!)
+            .Ignore(dest => dest.ApprovedByUser!);
     }
 }

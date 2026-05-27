@@ -6,12 +6,6 @@ using MMS.Application.Interfaces;
 using MMS.Application.Interfaces.Services;
 using MMS.Domain.Entities;
 using MMS.Domain.Enums;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace MMS.Application.Services;
 
@@ -273,55 +267,109 @@ public class SeriesService : ISeriesService
         return series.AuthorId == userId || series.TantouEditorId == userId;
     }
 
-    public async Task<Result<SeriesResponse>> ReviewSeriesAsync(ReviewSeriesRequest request, Guid adminUserId)
+    public async Task<Result<SeriesResponse>> VoteSeriesAsync(
+        Guid seriesId, Guid boardMemberId, VoteType vote, Guid? proposedTantouId, string? comment)
     {
-        var series = await _uow.Series.GetWithRankingsAsync(request.SeriesId);
+        // 1. Kiểm tra EB role
+        var boardMember = await _uow.Users.GetUserWithRolesAsync(boardMemberId);
+        if (boardMember == null || !boardMember.Roles.Any(r => r.Name == "Editorial Board"))
+            return Result<SeriesResponse>.Failure("FORBIDDEN", "Chỉ thành viên Editorial Board mới có thể bỏ phiếu.", 403);
+
+        // 2. Load series
+        var series = await _uow.Series.GetWithRankingsAsync(seriesId);
         if (series == null)
             return Result<SeriesResponse>.NotFound("SERIES_NOT_FOUND", "Bộ truyện không tồn tại.");
 
         if (series.Status != SeriesStatus.Draft)
-            return Result<SeriesResponse>.Failure("ALREADY_REVIEWED", "Bộ truyện này đã được xử lý.");
+            return Result<SeriesResponse>.Failure("ALREADY_REVIEWED", "Bộ truyện này đã được xử lý hoặc đang hoạt động.");
 
-        if (request.IsApproved)
+        // 3. Kiểm tra chưa vote
+        var existingVotes = await _uow.SeriesVotes.FindAsync(v => v.SeriesId == seriesId);
+        if (existingVotes.Any(v => v.BoardMemberId == boardMemberId))
+            return Result<SeriesResponse>.Failure("ALREADY_VOTED", "Bạn đã bỏ phiếu cho bộ truyện này rồi.");
+
+        // 4. Tạo phiếu bầu
+        var newVote = new SeriesVote
         {
-            if (request.TantouEditorId == null)
-                return Result<SeriesResponse>.Failure("EDITOR_REQUIRED", "Vui lòng chọn Biên tập viên (Tantou Editor) khi duyệt bộ truyện.");
+            Id = Guid.NewGuid(),
+            SeriesId = seriesId,
+            BoardMemberId = boardMemberId,
+            VoteType = vote,
+            ProposedTantouId = (vote == VoteType.Approve) ? proposedTantouId : null,
+            Comment = comment,
+            CreatedAt = DateTime.UtcNow
+        };
+        await _uow.SeriesVotes.AddAsync(newVote);
+        await _uow.SaveChangesAsync();
 
-            var editor = await _uow.Users.GetUserWithRolesAsync(request.TantouEditorId.Value);
+        // 5. Tính tổng số EB members
+        var allEbMembers = await _uow.Users.FindAsync(u =>
+            u.IsActive && u.Roles.Any(r => r.Name == "Editorial Board"));
+        int totalEb = allEbMembers.Count();
+
+        // 6. Đếm phiếu
+        var allVotes = (await _uow.SeriesVotes.FindAsync(v => v.SeriesId == seriesId)).ToList();
+        int approveCount = allVotes.Count(v => v.VoteType == VoteType.Approve);
+        int rejectCount = allVotes.Count(v => v.VoteType == VoteType.Reject);
+
+        // 7. Kiểm tra ngưỡng đa số
+        if (approveCount > totalEb / 2.0)
+        {
+            var selectedTantouId = ResolveTantouByConsensus(allVotes.Where(v => v.VoteType == VoteType.Approve));
+
+            if (selectedTantouId == null)
+                return Result<SeriesResponse>.Failure("EDITOR_REQUIRED", "Không có đề xuất Tantou Editor hợp lệ trong các phiếu bầu.");
+
+            // Guard: chỉ gán khi series vẫn ở Draft
+            if (series.Status != SeriesStatus.Draft)
+                return Result<SeriesResponse>.Failure("CANNOT_REASSIGN_TANTOU", "Tác phẩm đã hoạt động. Không thể thay đổi Tantou phụ trách.");
+
+            var editor = await _uow.Users.GetUserWithRolesAsync(selectedTantouId.Value);
             if (editor == null || !editor.Roles.Any(r => r.Name == "Tantou Editor"))
-                return Result<SeriesResponse>.Failure("INVALID_EDITOR", "Biên tập viên không hợp lệ.");
+                return Result<SeriesResponse>.Failure("INVALID_EDITOR", "Biên tập viên được đề xuất không hợp lệ.");
 
             series.Status = SeriesStatus.Ongoing;
-            series.TantouEditorId = request.TantouEditorId.Value;
+            series.TantouEditorId = selectedTantouId.Value;
             series.UpdatedAt = DateTime.UtcNow;
             _uow.Series.Update(series);
-
             await _uow.SaveChangesAsync();
 
             string? authorEmail = series.AuthorEmail ?? series.Author?.Email;
             string authorName = series.AuthorName ?? series.Author?.Username ?? "Tác giả";
             if (!string.IsNullOrEmpty(authorEmail))
-            {
                 await _emailService.SendApplicationApprovedAsync(authorEmail, authorName, series.Title);
-            }
 
             return Result<SeriesResponse>.Success(series.Adapt<SeriesResponse>(), "Bộ truyện đã được duyệt và hoạt động thành công.");
         }
-        else
+
+        if (rejectCount > totalEb / 2.0)
         {
-            // 1. Xóa Series
             _uow.Series.Remove(series);
             await _uow.SaveChangesAsync();
 
-            // 2. Gửi email thông báo từ chối
             string? authorEmail = series.AuthorEmail ?? series.Author?.Email;
             string authorName = series.AuthorName ?? series.Author?.Username ?? "Tác giả";
             if (!string.IsNullOrEmpty(authorEmail))
-            {
-                await _emailService.SendApplicationRejectedAsync(authorEmail, authorName, series.Title, "Đơn đăng ký bộ truyện mới đã bị từ chối bởi quản trị viên.");
-            }
+                await _emailService.SendApplicationRejectedAsync(authorEmail, authorName, series.Title, "Đơn đăng ký bộ truyện mới đã bị từ chối bởi Editorial Board.");
 
             return Result<SeriesResponse>.Success(series.Adapt<SeriesResponse>(), "Đơn đăng ký bộ truyện đã bị từ chối và xóa thành công.");
         }
+
+        return Result<SeriesResponse>.Success(
+            series.Adapt<SeriesResponse>(),
+            $"Phiếu bầu đã được ghi nhận. Hiện tại: {approveCount} Approve / {rejectCount} Reject / {totalEb} EB members.");
+    }
+
+    private static Guid? ResolveTantouByConsensus(IEnumerable<SeriesVote> approveVotes)
+    {
+        var grouped = approveVotes
+            .Where(v => v.ProposedTantouId.HasValue)
+            .GroupBy(v => v.ProposedTantouId!.Value)
+            .Select(g => new { TantouId = g.Key, Count = g.Count(), EarliestVote = g.Min(v => v.CreatedAt) })
+            .OrderByDescending(g => g.Count)
+            .ThenBy(g => g.EarliestVote)
+            .FirstOrDefault();
+
+        return grouped?.TantouId;
     }
 }

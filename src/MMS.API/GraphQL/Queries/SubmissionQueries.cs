@@ -37,15 +37,11 @@ public class SubmissionQueries
         var userId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
         
         string role = "Mangaka"; // default fallback
-        if (claimsPrincipal.IsInRole("Admin"))
+        if (claimsPrincipal.IsInRole("Editorial Board"))
         {
-            role = "Admin";
+            role = "Editorial Board";
         }
-        else if (claimsPrincipal.IsInRole("EditorialBoard"))
-        {
-            role = "EditorialBoard";
-        }
-        else if (claimsPrincipal.IsInRole("Tantou"))
+        else if (claimsPrincipal.IsInRole("Tantou Editor"))
         {
             role = "Tantou";
         }

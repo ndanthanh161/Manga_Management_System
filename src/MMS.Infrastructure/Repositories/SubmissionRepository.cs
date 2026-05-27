@@ -54,7 +54,7 @@ public class SubmissionRepository : GenericRepository<Submission>, ISubmissionRe
                 query = query.Where(s => s.Status == WorkflowStatus.Submitted || s.Status == WorkflowStatus.UnderTantouReview);
             }
         }
-        else if (role.Equals("EditorialBoard", StringComparison.OrdinalIgnoreCase))
+        else if (role.Equals("Editorial Board", StringComparison.OrdinalIgnoreCase))
         {
             if (filter.HasValue)
             {

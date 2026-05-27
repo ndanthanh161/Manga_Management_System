@@ -16,7 +16,7 @@ public static class DbInitializer
         context.Database.EnsureCreated();
 
         // Seed Roles nếu chưa có
-        var roleNames = new[] { "Admin", "Mangaka", "Assistant", "Tantou Editor", "Editorial Board" };
+        var roleNames = new[] { "Mangaka", "Assistant", "Tantou Editor", "Editorial Board" };
 
         var existingRoles = await context.Roles.Where(r => roleNames.Contains(r.Name)).Select(r => r.Name).ToListAsync();
 
@@ -28,22 +28,22 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
-        // Seed Admin User nếu chưa tồn tại
-        if (!await context.Users.AnyAsync(u => u.Email == "admin@mms.com"))
+        // Seed Editorial Board member nếu chưa tồn tại
+        if (!await context.Users.AnyAsync(u => u.Email == "eb_member1@mms.com"))
         {
-            var adminRole = await context.Roles.FirstAsync(r => r.Name == "Admin");
+            var ebRole = await context.Roles.FirstAsync(r => r.Name == "Editorial Board");
 
-            var admin = new User
+            var ebMember = new User
             {
                 Id = Guid.NewGuid(),
-                Username = "admin",
-                Email = "admin@mms.com",
-                PasswordHash = passwordHasher.Hash("Admin@123"),
+                Username = "eb_member1",
+                Email = "eb_member1@mms.com",
+                PasswordHash = passwordHasher.Hash("Eb@123456"),
                 IsActive = true,
-                Roles = new List<Role> { adminRole }
+                Roles = new List<Role> { ebRole }
             };
 
-            await context.Users.AddAsync(admin);
+            await context.Users.AddAsync(ebMember);
             await context.SaveChangesAsync();
         }
     }

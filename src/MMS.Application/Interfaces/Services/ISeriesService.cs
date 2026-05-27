@@ -1,6 +1,6 @@
 using MMS.Application.Common;
 using MMS.Application.DTOs.Series;
-using System.IO;
+using MMS.Domain.Enums;
 
 namespace MMS.Application.Interfaces.Services;
 
@@ -14,6 +14,5 @@ public interface ISeriesService
     Task<SeriesRankingResponse> AddRankingAsync(Guid seriesId, int position, string period);
     Task CheckSurvivalAlertsAsync();
     Task<bool> CanUserManageSeriesAsync(Guid seriesId, Guid userId);
-
-    Task<Result<SeriesResponse>> ReviewSeriesAsync(ReviewSeriesRequest request, Guid adminUserId);
+    Task<Result<SeriesResponse>> VoteSeriesAsync(Guid seriesId, Guid boardMemberId, VoteType vote, Guid? proposedTantouId, string? comment);
 }

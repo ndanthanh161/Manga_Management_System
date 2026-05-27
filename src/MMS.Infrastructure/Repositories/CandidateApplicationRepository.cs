@@ -17,8 +17,9 @@ public class CandidateApplicationRepository : GenericRepository<CandidateApplica
         return await _context.CandidateApplications
             .Include(a => a.User)
             .Include(a => a.Series)
-            .Include(a => a.ReviewedByUser)
+            .Include(a => a.ApprovedByUser)
             .Include(a => a.Assets)
+            .Include(a => a.ApplicationVotes)
             .FirstOrDefaultAsync(a => a.Id == id);
     }
 

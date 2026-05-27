@@ -1,5 +1,3 @@
-using MMS.Domain.Enums;
-
 namespace MMS.Domain.Entities;
 
 public class User
@@ -9,7 +7,6 @@ public class User
     public string Email { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
-    public EditorialPosition? EditorialPosition { get; set; } 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 

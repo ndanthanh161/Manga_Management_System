@@ -1,5 +1,6 @@
 using MMS.Application.DTOs.CandidateApplication;
 using MMS.Application.Interfaces.Services;
+using MMS.Domain.Enums;
 using System.Security.Claims;
 using HotChocolate.Authorization;
 using HotChocolate.Types;
@@ -10,19 +11,16 @@ namespace MMS.API.GraphQL;
 [ExtendObjectType("Mutation")]
 public class CandidateApplicationMutations
 {
-    /// <summary>
-    /// Admin duyệt hoặc từ chối đơn ứng tuyển
-    /// </summary>
-    [Authorize(Roles = new[] { "Admin" })]
-    public async Task<R.Result<CandidateApplicationDto>> ReviewApplication(
+    [Authorize(Roles = new[] { "Editorial Board" })]
+    public async Task<R.Result<CandidateApplicationDto>> VoteApplication(
         [Service] ICandidateApplicationService service,
-        ReviewApplicationRequest request,
+        Guid applicationId,
+        VoteType vote,
+        Guid? proposedTantouId,
+        string? comment,
         ClaimsPrincipal claimsPrincipal)
     {
-        var userIdString = claimsPrincipal.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userIdString))
-            return R.Result<CandidateApplicationDto>.Failure("UNAUTHORIZED", "Unauthorized", 401);
-
-        return await service.ReviewApplicationAsync(request, Guid.Parse(userIdString));
+        var userId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
+        return await service.VoteApplicationAsync(applicationId, userId, vote, proposedTantouId, comment);
     }
 }

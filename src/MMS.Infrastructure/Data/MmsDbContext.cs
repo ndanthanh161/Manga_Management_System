@@ -31,6 +31,8 @@ public class MmsDbContext : DbContext
     public DbSet<AssistantSalary> AssistantSalaries { get; set; } = null!;
     public DbSet<AssistantIncome> AssistantIncomes { get; set; } = null!;
     public DbSet<CandidateApplication> CandidateApplications { get; set; } = null!;
+    public DbSet<ApplicationVote> ApplicationVotes { get; set; } = null!;
+    public DbSet<SeriesVote> SeriesVotes { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -42,10 +44,6 @@ public class MmsDbContext : DbContext
             .WithMany(r => r.Users)
             .UsingEntity(j => j.ToTable("UserRoles"));
 
-        modelBuilder.Entity<User>()
-            .Property(u => u.EditorialPosition)
-            .HasConversion<string>()
-            .HasMaxLength(32);
         // User relationships
         modelBuilder.Entity<User>()
             .HasMany(u => u.Series)
@@ -391,9 +389,9 @@ public class MmsDbContext : DbContext
                 .HasForeignKey(e => e.SeriesId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(e => e.ReviewedByUser)
+            entity.HasOne(e => e.ApprovedByUser)
                 .WithMany()
-                .HasForeignKey(e => e.ReviewedByUserId)
+                .HasForeignKey(e => e.ApprovedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasMany(e => e.Assets)
@@ -402,6 +400,38 @@ public class MmsDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(e => e.Status);
+        });
+
+        // ApplicationVote configurations
+        modelBuilder.Entity<ApplicationVote>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.VoteType).HasConversion<string>().HasMaxLength(32);
+            entity.HasOne(e => e.Application)
+                .WithMany(a => a.ApplicationVotes)
+                .HasForeignKey(e => e.ApplicationId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.BoardMember)
+                .WithMany()
+                .HasForeignKey(e => e.BoardMemberId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => new { e.ApplicationId, e.BoardMemberId }).IsUnique();
+        });
+
+        // SeriesVote configurations
+        modelBuilder.Entity<SeriesVote>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.VoteType).HasConversion<string>().HasMaxLength(32);
+            entity.HasOne(e => e.Series)
+                .WithMany()
+                .HasForeignKey(e => e.SeriesId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.BoardMember)
+                .WithMany()
+                .HasForeignKey(e => e.BoardMemberId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(e => new { e.SeriesId, e.BoardMemberId }).IsUnique();
         });
     }
 }

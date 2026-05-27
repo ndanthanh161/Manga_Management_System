@@ -94,36 +94,95 @@ public class CandidateApplicationService : ICandidateApplicationService
         return Result<CandidateApplicationDto>.Success(dto, "Đơn ứng tuyển đã được gửi thành công. Vui lòng chờ phản hồi qua email.");
     }
 
-    public async Task<Result<CandidateApplicationDto>> ReviewApplicationAsync(
-        ReviewApplicationRequest request, Guid adminUserId)
+    public async Task<Result<CandidateApplicationDto>> VoteApplicationAsync(
+        Guid applicationId, Guid boardMemberId, VoteType vote, Guid? proposedTantouId, string? comment)
     {
-        // 1. Load CandidateApplication kèm User + Series
-        var application = await _unitOfWork.CandidateApplications.GetWithDetailsAsync(request.ApplicationId);
+        // 1. Kiểm tra EB role
+        var boardMember = await _unitOfWork.Users.GetUserWithRolesAsync(boardMemberId);
+        if (boardMember == null || !boardMember.Roles.Any(r => r.Name == "Editorial Board"))
+            return Result<CandidateApplicationDto>.Failure("FORBIDDEN", "Chỉ thành viên Editorial Board mới có thể bỏ phiếu.", 403);
+
+        // 2. Load application kèm ApplicationVotes + User + Series
+        var application = await _unitOfWork.CandidateApplications.GetWithDetailsAsync(applicationId);
         if (application == null)
             return Result<CandidateApplicationDto>.NotFound("NOT_FOUND", "Đơn ứng tuyển không tồn tại.");
 
         if (application.Status != CandidateApplicationStatus.Pending)
             return Result<CandidateApplicationDto>.Failure("ALREADY_REVIEWED", "Đơn ứng tuyển này đã được xử lý.");
 
-        application.ReviewedByUserId = adminUserId;
-        application.ReviewedAt = DateTime.UtcNow;
-        application.ReviewNote = request.ReviewNote;
+        // 3. Kiểm tra chưa vote (prevent duplicate)
+        var existingVotes = await _unitOfWork.ApplicationVotes.FindAsync(v => v.ApplicationId == applicationId);
+        if (existingVotes.Any(v => v.BoardMemberId == boardMemberId))
+            return Result<CandidateApplicationDto>.Failure("ALREADY_VOTED", "Bạn đã bỏ phiếu cho đơn ứng tuyển này rồi.");
 
-        if (request.IsApproved)
+        // 4. Tạo phiếu bầu mới
+        var newVote = new ApplicationVote
         {
-            return await ApproveApplicationAsync(application, request.TantouEditorId);
+            Id = Guid.NewGuid(),
+            ApplicationId = applicationId,
+            BoardMemberId = boardMemberId,
+            VoteType = vote,
+            ProposedTantouId = (vote == VoteType.Approve) ? proposedTantouId : null,
+            Comment = comment,
+            CreatedAt = DateTime.UtcNow
+        };
+        await _unitOfWork.ApplicationVotes.AddAsync(newVote);
+        await _unitOfWork.SaveChangesAsync();
+
+        // 5. Tính tổng số EB members trong hệ thống
+        var allEbMembers = await _unitOfWork.Users.FindAsync(u =>
+            u.IsActive && u.Roles.Any(r => r.Name == "Editorial Board"));
+        int totalEb = allEbMembers.Count();
+
+        // 6. Đếm phiếu hiện tại
+        var allVotes = (await _unitOfWork.ApplicationVotes.FindAsync(v => v.ApplicationId == applicationId)).ToList();
+        int approveCount = allVotes.Count(v => v.VoteType == VoteType.Approve);
+        int rejectCount = allVotes.Count(v => v.VoteType == VoteType.Reject);
+
+        // 7. Kiểm tra đạt ngưỡng
+        if (approveCount > totalEb / 2.0)
+        {
+            var selectedTantouId = ResolveTantouByConsensus(allVotes.Where(v => v.VoteType == VoteType.Approve));
+            application.ApprovedByUserId = boardMemberId;
+            application.ReviewedAt = DateTime.UtcNow;
+            return await ApproveApplicationAsync(application, selectedTantouId);
         }
-        else
+
+        if (rejectCount > totalEb / 2.0)
         {
+            application.ReviewedAt = DateTime.UtcNow;
             return await RejectApplicationAsync(application);
         }
+
+        return Result<CandidateApplicationDto>.Success(
+            application.Adapt<CandidateApplicationDto>(),
+            $"Phiếu bầu đã được ghi nhận. Hiện tại: {approveCount} Approve / {rejectCount} Reject / {totalEb} EB members.");
+    }
+
+    // Thuật toán đồng thuận: plurality vote + tie-breaker theo CreatedAt sớm nhất
+    private static Guid? ResolveTantouByConsensus(IEnumerable<ApplicationVote> approveVotes)
+    {
+        var grouped = approveVotes
+            .Where(v => v.ProposedTantouId.HasValue)
+            .GroupBy(v => v.ProposedTantouId!.Value)
+            .Select(g => new { TantouId = g.Key, Count = g.Count(), EarliestVote = g.Min(v => v.CreatedAt) })
+            .OrderByDescending(g => g.Count)
+            .ThenBy(g => g.EarliestVote)
+            .FirstOrDefault();
+
+        return grouped?.TantouId;
     }
 
     private async Task<Result<CandidateApplicationDto>> ApproveApplicationAsync(
         CandidateApplication application, Guid? tantouEditorId)
     {
         if (tantouEditorId == null)
-            return Result<CandidateApplicationDto>.Failure("EDITOR_REQUIRED", "Vui lòng chọn Biên tập viên (Tantou Editor) khi duyệt đơn.");
+            return Result<CandidateApplicationDto>.Failure("EDITOR_REQUIRED", "Vui lòng đề xuất Biên tập viên (Tantou Editor) khi bỏ phiếu duyệt đơn.");
+
+        // Guard: không cho phép gán lại Tantou nếu series đã active
+        var series = application.Series;
+        if (series.Status != SeriesStatus.Draft)
+            return Result<CandidateApplicationDto>.Failure("CANNOT_REASSIGN_TANTOU", "Tác phẩm đã hoạt động. Không thể thay đổi Tantou phụ trách.");
 
         // Validate tantou editor tồn tại
         var editor = await _unitOfWork.Users.GetUserWithRolesAsync(tantouEditorId.Value);
@@ -131,7 +190,6 @@ public class CandidateApplicationService : ICandidateApplicationService
             return Result<CandidateApplicationDto>.Failure("INVALID_EDITOR", "Biên tập viên không hợp lệ.");
 
         var user = application.User;
-        var series = application.Series;
 
         // 1. Kích hoạt User
         user.IsActive = true;
@@ -149,7 +207,7 @@ public class CandidateApplicationService : ICandidateApplicationService
             }
         }
 
-        // 3. Cập nhật Series → Ongoing + gán TantouEditorId
+        // 3. Cập nhật Series → Ongoing + gán TantouEditorId (khóa cứng)
         series.Status = SeriesStatus.Ongoing;
         series.TantouEditorId = tantouEditorId.Value;
         series.UpdatedAt = DateTime.UtcNow;
@@ -195,7 +253,6 @@ public class CandidateApplicationService : ICandidateApplicationService
 
         await _unitOfWork.SaveChangesAsync();
 
-        // 5. Gửi email thông báo chấp nhận
         await _emailService.SendApplicationApprovedAsync(user.Email, application.FullName, series.Title);
 
         return Result<CandidateApplicationDto>.Success(application.Adapt<CandidateApplicationDto>(),
@@ -236,12 +293,9 @@ public class CandidateApplicationService : ICandidateApplicationService
 
         await _unitOfWork.SaveChangesAsync();
 
-        // 5. Gửi email từ chối
         await _emailService.SendApplicationRejectedAsync(email, fullName, seriesTitle, reviewNote);
 
-        var dto = application.Adapt<CandidateApplicationDto>();
-
-        return Result<CandidateApplicationDto>.Success(dto,
+        return Result<CandidateApplicationDto>.Success(application.Adapt<CandidateApplicationDto>(),
             "Đơn ứng tuyển đã bị từ chối. Email thông báo đã được gửi.");
     }
 
