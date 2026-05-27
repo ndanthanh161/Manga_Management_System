@@ -181,53 +181,17 @@ query ApplicationById {
 }
 ```
 
-### 2.4A. Admin từ chối đơn ứng tuyển
+### 2.4A. Thành viên Hội đồng biểu quyết từ chối đơn ứng tuyển
 
-Header: `<ADMIN_TOKEN>`.
-
-```graphql
-mutation RejectApplication {
-  reviewApplication(
-    request: {
-      applicationId: "<APPLICATION_ID>"
-      isApproved: false
-      reviewNote: "Storyboard còn thiếu nhịp kể chuyện và bố cục panel chưa rõ."
-    }
-  ) {
-    succeeded
-    message
-    data {
-      id
-      fullName
-      email
-      seriesTitle
-      status
-      reviewNote
-      reviewedAt
-    }
-  }
-}
-```
-
-Kỳ vọng:
-
-- `status = Rejected`.
-- User pending và Series nháp bị xóa/ẩn theo service hiện tại.
-- Ứng viên không login được.
-
-### 2.4B. Admin chấp nhận đơn ứng tuyển
-
-Header: `<ADMIN_TOKEN>`.
+Header: `<BOARD_TOKEN>` (Tài khoản thuộc role `Editorial Board`).
 
 ```graphql
-mutation ApproveApplication {
-  reviewApplication(
-    request: {
-      applicationId: "<APPLICATION_ID>"
-      isApproved: true
-      reviewNote: "Nét vẽ tốt, tiềm năng thương mại rõ. Duyệt làm Mangaka chính thức."
-      tantouEditorId: "<TANTOU_EDITOR_ID>"
-    }
+mutation VoteApplicationReject {
+  voteApplication(
+    applicationId: "<APPLICATION_ID>"
+    vote: REJECT
+    proposedTantouId: null
+    comment: "Storyboard còn thiếu nhịp kể chuyện và bố cục panel chưa rõ."
   ) {
     succeeded
     message
@@ -245,13 +209,47 @@ mutation ApproveApplication {
 }
 ```
 
-Kỳ vọng:
+Kỳ vọng (nếu số lượng phiếu Reject vượt quá bán tổng số EB hoạt động):
 
-- `CandidateApplication.status = Approved`.
-- User được active và có role `Mangaka`.
-- Series chuyển `Ongoing` và có `TantouEditorId`.
-- Hệ thống tạo Chapter 1 và Manuscript từ assets ứng tuyển.
-- Ứng viên có thể login bằng email/password đã gửi.
+- Đơn chuyển sang trạng thái `status = Rejected`.
+- User nháp và Series nháp ứng viên bị xóa hoàn toàn khỏi DB.
+- Ứng viên không đăng nhập được.
+
+### 2.4B. Thành viên Hội đồng biểu quyết phê duyệt đơn ứng tuyển
+
+Header: `<BOARD_TOKEN>` (Tài khoản thuộc role `Editorial Board`).
+
+```graphql
+mutation VoteApplicationApprove {
+  voteApplication(
+    applicationId: "<APPLICATION_ID>"
+    vote: APPROVE
+    proposedTantouId: "<TANTOU_EDITOR_ID>"
+    comment: "Nét vẽ tốt, tiềm năng thương mại rõ. Duyệt làm Mangaka chính thức."
+  ) {
+    succeeded
+    message
+    errors
+    data {
+      id
+      fullName
+      email
+      seriesTitle
+      status
+      reviewNote
+      reviewedAt
+    }
+  }
+}
+```
+
+Kỳ vọng (khi số phiếu Approve vượt quá bán tổng số EB hoạt động):
+
+- Đơn chuyển sang trạng thái `status = Approved`.
+- Tài khoản tác giả được kích hoạt (`IsActive = true`) và được gán vai trò `Mangaka`.
+- Series ứng tuyển chuyển sang trạng thái `Ongoing`, được gán cứng `TantouEditorId` (dựa trên đồng thuận phiếu bầu).
+- Tự động khởi tạo Chapter 1 và Manuscript Draft v1 liên kết với toàn bộ ban đầu assets của ứng viên.
+- Ứng viên đăng nhập bình thường với email/password đã đăng ký.
 
 ### 2.5. Mangaka mới đăng nhập sau khi được duyệt
 
@@ -1073,12 +1071,17 @@ curl -X POST "https://localhost:7129/api/upload/series" \
 ```
 *(Yêu cầu đăng ký thành công sẽ tạo Series ở trạng thái `Draft` chờ Admin duyệt).*
 
-### Admin / Editor duyệt hoặc từ chối đăng ký Series mới (GraphQL Mutation - Token Admin/Editor):
-*Khi duyệt thành công: Series chuyển sang trạng thái `Ongoing` và gán Biên tập viên (Tantou Editor) phụ trách.*
+### Hội đồng Biên tập biểu quyết duyệt hoặc từ chối đăng ký Series mới (GraphQL Mutation - Token Editorial Board):
+*Khi biểu quyết Approve đạt quá bán tổng số thành viên EB hoạt động: Series chuyển sang trạng thái `Ongoing` và gán Biên tập viên (Tantou Editor) phụ trách theo thuật toán đồng thuận.*
 
 ```graphql
-mutation ReviewSeries($request: ReviewSeriesRequestInput!) {
-  reviewSeries(request: $request) {
+mutation VoteSeries($seriesId: UUID!, $vote: VoteType!, $proposedTantouId: UUID, $comment: String) {
+  voteSeries(
+    seriesId: $seriesId
+    vote: $vote
+    proposedTantouId: $proposedTantouId
+    comment: $comment
+  ) {
     succeeded
     message
     errors
@@ -1094,24 +1097,24 @@ mutation ReviewSeries($request: ReviewSeriesRequestInput!) {
 }
 ```
 
-**GraphQL Variables (JSON) - Duyệt Chấp Nhận (Approve):**
+**Biểu quyết phê duyệt (Approve) của thành viên EB:**
+*Variables:*
 ```json
 {
-  "request": {
-    "seriesId": "ĐIỀN_ID_SERIES_VỪA_TẠO_VÀO_ĐÂY",
-    "isApproved": true,
-    "tantouEditorId": "ĐIỀN_ID_TANTOU_EDITOR_VÀO_ĐÂY"
-  }
+  "seriesId": "ĐIỀN_ID_SERIES_VỪA_TẠO_VÀO_ĐÂY",
+  "vote": "APPROVE",
+  "proposedTantouId": "ĐIỀN_ID_TANTOU_EDITOR_VÀO_ĐÂY",
+  "comment": "Art tốt, đồng ý duyệt và đề xuất Tantou phụ trách."
 }
 ```
 
-**GraphQL Variables (JSON) - Từ Chối & Xóa Series (Reject):**
+**Biểu quyết từ chối (Reject) của thành viên EB:**
+*Variables:*
 ```json
 {
-  "request": {
-    "seriesId": "ĐIỀN_ID_SERIES_VỪA_TẠO_VÀO_ĐÂY",
-    "isApproved": false
-  }
+  "seriesId": "ĐIỀN_ID_SERIES_VỪA_TẠO_VÀO_ĐÂY",
+  "vote": "REJECT",
+  "comment": "Cốt truyện chưa rõ nét, đề nghị xây dựng lại."
 }
 ```
 
@@ -1523,19 +1526,17 @@ query MangakaCannotReadAssistantIncome {
 
 Kỳ vọng: bị chặn bởi role, vì query chỉ cho `Assistant`.
 
-### 11.4. Non-admin không được duyệt CandidateApplication
+### 11.4. Tài khoản không có role Editorial Board không được biểu quyết CandidateApplication
 
 Header: `<MANGAKA_TOKEN>` hoặc `<TANTOU_TOKEN>`.
 
 ```graphql
-mutation NonAdminCannotReviewApplication {
-  reviewApplication(
-    request: {
-      applicationId: "<APPLICATION_ID>"
-      isApproved: true
-      reviewNote: "Khong hop le"
-      tantouEditorId: "<TANTOU_EDITOR_ID>"
-    }
+mutation NonEditorialBoardCannotVoteApplication {
+  voteApplication(
+    applicationId: "<APPLICATION_ID>"
+    vote: APPROVE
+    proposedTantouId: "<TANTOU_EDITOR_ID>"
+    comment: "Hack vote trái phép"
   ) {
     succeeded
     message
@@ -1543,7 +1544,7 @@ mutation NonAdminCannotReviewApplication {
 }
 ```
 
-Kỳ vọng: bị chặn bởi role, vì `reviewApplication` chỉ cho `Admin`.
+Kỳ vọng: bị chặn bởi hệ thống với mã lỗi `FORBIDDEN` (403), vì `voteApplication` chỉ cho phép người dùng thuộc role `Editorial Board`.
 
 ### 11.5. Mangaka nội bộ không đi qua luồng CandidateApplication cho bộ thứ 2
 
