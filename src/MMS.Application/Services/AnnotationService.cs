@@ -56,7 +56,7 @@ public class AnnotationService : IAnnotationService
         await _uow.Annotations.AddAsync(annotation);
         await _uow.SaveChangesAsync();
 
-        if (chapter != null)
+        if (chapter != null )
         {
             await _eventPublisher.PublishAsync(new AnnotationCreatedEvent(
                 annotation.Id,

@@ -38,7 +38,8 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtProvider, JwtProvider>();
         services.AddScoped<ICacheService, CacheService>();
-        services.AddScoped<IEmailService, EmailService>();
+        services.AddScoped<IEmailService, GrpcEmailService>();
+        services.AddScoped<INotificationGrpcClient, NotificationGrpcClientWrapper>();
 
         // 4. gRPC Clients (Phase 2+)
         services.AddMmsGrpcClients(configuration);

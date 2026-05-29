@@ -43,3 +43,7 @@ publish/
 ## Ignore auto test scripts & test suite files
 auto_test.ps1
 
+
+
+#Ignore vscode AI rules
+.github\instructions\codacy.instructions.md

@@ -1,4 +1,4 @@
-
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36518.9
@@ -18,6 +18,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "02. Shared Contracts", "02. Shared Contracts", "{F1B3E034-3A4E-4952-B974-9C78A4E9E002}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "03. Services", "03. Services", "{F1B3E034-3A4E-4952-B974-9C78A4E9E003}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MMS.NotificationService", "MMS.NotificationService\MMS.NotificationService.csproj", "{D634B614-51C1-44D9-AA7C-B48B568E21A1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -89,12 +91,21 @@ Global
 		{E62507CB-3B5E-40DA-8DBD-9C7A74C16CE9}.Release|x64.Build.0 = Release|Any CPU
 		{E62507CB-3B5E-40DA-8DBD-9C7A74C16CE9}.Release|x86.ActiveCfg = Release|Any CPU
 		{E62507CB-3B5E-40DA-8DBD-9C7A74C16CE9}.Release|x86.Build.0 = Release|Any CPU
+		{D634B614-51C1-44D9-AA7C-B48B568E21A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D634B614-51C1-44D9-AA7C-B48B568E21A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D634B614-51C1-44D9-AA7C-B48B568E21A1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D634B614-51C1-44D9-AA7C-B48B568E21A1}.Debug|x64.Build.0 = Debug|Any CPU
+		{D634B614-51C1-44D9-AA7C-B48B568E21A1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D634B614-51C1-44D9-AA7C-B48B568E21A1}.Debug|x86.Build.0 = Debug|Any CPU
+		{D634B614-51C1-44D9-AA7C-B48B568E21A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D634B614-51C1-44D9-AA7C-B48B568E21A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D634B614-51C1-44D9-AA7C-B48B568E21A1}.Release|x64.ActiveCfg = Release|Any CPU
+		{D634B614-51C1-44D9-AA7C-B48B568E21A1}.Release|x64.Build.0 = Release|Any CPU
+		{D634B614-51C1-44D9-AA7C-B48B568E21A1}.Release|x86.ActiveCfg = Release|Any CPU
+		{D634B614-51C1-44D9-AA7C-B48B568E21A1}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {7222BC17-3F50-48AA-BB2A-9D735C7D546E}
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{36BDDE45-2E36-FDA5-9DA9-0FE6F723BDEB} = {F1B3E034-3A4E-4952-B974-9C78A4E9E001}
@@ -102,5 +113,8 @@ Global
 		{26D21062-2421-488C-ADA0-8C1EA25907AE} = {F1B3E034-3A4E-4952-B974-9C78A4E9E001}
 		{2C295863-4236-404F-BA1F-18DB541B8CBF} = {F1B3E034-3A4E-4952-B974-9C78A4E9E001}
 		{E62507CB-3B5E-40DA-8DBD-9C7A74C16CE9} = {F1B3E034-3A4E-4952-B974-9C78A4E9E002}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7222BC17-3F50-48AA-BB2A-9D735C7D546E}
 	EndGlobalSection
 EndGlobal

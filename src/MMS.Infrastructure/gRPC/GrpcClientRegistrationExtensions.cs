@@ -29,6 +29,20 @@ public static class GrpcClientRegistrationExtensions
             p.WaitAndRetryAsync(options.RetryCount,
                 attempt => TimeSpan.FromMilliseconds(200 * Math.Pow(2, attempt))));
 
+        // Notification client (Phase 9)
+        services.AddGrpcClient<MMS.Protos.Notification.V1.NotificationService.NotificationServiceClient>(o =>
+        {
+            o.Address = new Uri(options.NotificationEndpoint);
+        })
+        .ConfigureChannel(ch =>
+        {
+            ch.MaxReceiveMessageSize = options.MaxReceiveMessageSizeMb * 1024 * 1024;
+        })
+        .AddInterceptor<GrpcAuthClientInterceptor>()
+        .AddTransientHttpErrorPolicy(p =>
+            p.WaitAndRetryAsync(options.RetryCount,
+                attempt => TimeSpan.FromMilliseconds(200 * Math.Pow(2, attempt))));
+
         return services;
     }
 }

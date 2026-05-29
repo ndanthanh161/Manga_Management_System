@@ -16,12 +16,18 @@ public class SubmissionService : ISubmissionService
     private readonly IUnitOfWork _uow;
     private readonly IEmailService _emailService;
     private readonly IDomainEventPublisher _eventPublisher;
+    private readonly INotificationGrpcClient _notificationClient;
 
-    public SubmissionService(IUnitOfWork uow, IEmailService emailService, IDomainEventPublisher eventPublisher)
+    public SubmissionService(
+        IUnitOfWork uow, 
+        IEmailService emailService, 
+        IDomainEventPublisher eventPublisher,
+        INotificationGrpcClient notificationClient)
     {
         _uow = uow;
         _emailService = emailService;
         _eventPublisher = eventPublisher;
+        _notificationClient = notificationClient;
     }
 
     public async Task<Result<SubmissionResponse>> CreateAsync(Guid? mangakaId, CreateSubmissionRequest request)
@@ -534,6 +540,19 @@ public class SubmissionService : ISubmissionService
                 submission.MangakaId ?? Guid.Empty,
                 string.IsNullOrWhiteSpace(comment) ? $"Quyết định của Hội đồng: {decision}" : comment
             ));
+
+            // Gọi email qua gRPC client trực tiếp 
+            if (decision == WorkflowStatus.Approved || decision == WorkflowStatus.Rejected)
+            {
+                if (submission.MangakaId.HasValue && submission.MangakaId.Value != Guid.Empty)
+                {
+                    string msg = decision == WorkflowStatus.Approved
+                        ? $"Chúc mừng! Bản thảo '{submission.Title}' đã được duyệt xuất bản."
+                        : $"Bản thảo '{submission.Title}' chưa được duyệt. Lý do: {comment}";
+
+                    await _notificationClient.SendEmailAsync(submission.MangakaId.Value.ToString(), "Kết quả duyệt bản thảo", msg);
+                }
+            }
 
             var updated = await _uow.Submissions.GetWithDetailsAsync(submissionId);
             return Result<SubmissionResponse>.Success(updated!.Adapt<SubmissionResponse>());

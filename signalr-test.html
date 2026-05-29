@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MMS SignalR Interactive Test Panel</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: rgba(17, 24, 39, 0.7);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --accent-primary: #6366f1;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.1) 0px, transparent 50%);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+            width: 100%;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #a5b4fc, #6366f1, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .card-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: rgba(31, 41, 55, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+            background: rgba(31, 41, 55, 0.8);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-disconnected {
+            background-color: rgba(239, 68, 68, 0.15);
+            color: var(--accent-danger);
+        }
+
+        .status-connected {
+            background-color: rgba(16, 185, 129, 0.15);
+            color: var(--accent-success);
+        }
+
+        .status-connecting {
+            background-color: rgba(245, 158, 11, 0.15);
+            color: var(--accent-warning);
+        }
+
+        .terminal {
+            background-color: #070a13;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            height: 350px;
+            overflow-y: auto;
+            color: #10b981;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .log-entry {
+            line-height: 1.4;
+            border-left: 2px solid var(--border-color);
+            padding-left: 0.5rem;
+        }
+
+        .log-time {
+            color: var(--text-muted);
+            margin-right: 0.5rem;
+        }
+
+        .log-info {
+            color: #60a5fa;
+        }
+
+        .log-success {
+            color: #34d399;
+        }
+
+        .log-warning {
+            color: #fbbf24;
+        }
+
+        .log-error {
+            color: #f87171;
+        }
+
+        .group-actions {
+            margin-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            padding-top: 1rem;
+            display: none;
+        }
+
+        .group-actions.active {
+            display: block;
+        }
+
+        .grid-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>MMS Realtime Test Panel</h1>
+        <p>Kiểm thử hệ thống đẩy sự kiện thời gian thực bằng SignalR</p>
+    </header>
+
+    <div class="container">
+        <!-- Cấu hình kết nối -->
+        <div class="card">
+            <div class="card-title">
+                ⚡ Kết Nối & Cấu Hình
+                <span id="status-badge" class="status-badge status-disconnected">Disconnected</span>
+            </div>
+
+            <div class="form-group">
+                <label for="hub-url">Lựa Chọn Hub</label>
+                <select id="hub-url" onchange="onHubChange()">
+                    <option value="https://localhost:5001/hub/notifications">NotificationHub (/hub/notifications)</option>
+                    <option value="https://localhost:5001/hub/annotations">AnnotationHub (/hub/annotations)</option>
+                    <option value="https://localhost:5001/hub/boardvoting">BoardVotingHub (/hub/boardvoting)</option>
+                    <option value="https://localhost:5001/hub/progress">ChapterProgressHub (/hub/progress)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="jwt-token">JWT Bearer Token</label>
+                <textarea id="jwt-token" rows="4" placeholder="Nhập JWT Token lấy từ login API..."></textarea>
+            </div>
+
+            <button id="btn-connect" class="btn btn-primary" onclick="toggleConnection()">Connect</button>
+
+            <!-- Thao tác cho từng Hub riêng biệt (Join Group) -->
+            <div id="group-panel" class="group-actions">
+                <label id="group-label" for="group-input">ID Chương/Bản thảo để tham gia</label>
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                    <input type="text" id="group-input" placeholder="Guid ID...">
+                    <button class="btn btn-primary" style="width: auto;" onclick="joinGroup()">Join</button>
+                </div>
+                <div class="grid-buttons">
+                    <button class="btn btn-danger" onclick="leaveGroup()">Leave Group</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Terminal Log -->
+        <div class="card">
+            <div class="card-title">
+                🖥️ Bảng Nhật Ký Sự Kiện Realtime
+            </div>
+            <div id="terminal" class="terminal">
+                <div class="log-entry log-info"><span class="log-time">[Hệ thống]</span>Chào mừng! Hãy nhập token, chọn Hub và nhấn Connect để kiểm thử.</div>
+            </div>
+            <button class="btn btn-danger" style="margin-top: 1rem; width: auto; align-self: flex-end;" onclick="clearLogs()">Xóa log</button>
+        </div>
+    </div>
+
+    <!-- SignalR Client Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.0/dist/browser/signalr.min.js"></script>
+    <script>
+        let connection = null;
+        const statusBadge = document.getElementById("status-badge");
+        const btnConnect = document.getElementById("btn-connect");
+        const terminal = document.getElementById("terminal");
+        const groupPanel = document.getElementById("group-panel");
+        const groupLabel = document.getElementById("group-label");
+        const groupInput = document.getElementById("group-input");
+        const hubSelect = document.getElementById("hub-url");
+
+        function log(message, type = "info") {
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement("div");
+            entry.className = `log-entry log-${type}`;
+            entry.innerHTML = `<span class="log-time">[${time}]</span> ${message}`;
+            terminal.appendChild(entry);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        function clearLogs() {
+            terminal.innerHTML = "";
+            log("Nhật ký đã được xóa.");
+        }
+
+        function onHubChange() {
+            const hub = hubSelect.value;
+            if (connection) {
+                log("Đã chọn Hub khác, vui lòng Reconnect.", "warning");
+            }
+            updateGroupPanelVisibility();
+        }
+
+        function updateGroupPanelVisibility() {
+            const hub = hubSelect.value;
+            if (connection && connection.state === signalR.HubConnectionState.Connected) {
+                if (hub.includes("notifications")) {
+                    groupPanel.classList.remove("active");
+                } else {
+                    groupPanel.classList.add("active");
+                    if (hub.includes("annotations") || hub.includes("progress")) {
+                        groupLabel.innerText = "Chapter ID để tham gia (JoinChapter)";
+                    } else if (hub.includes("boardvoting")) {
+                        groupLabel.innerText = "Join Session (Submission/Application ID)";
+                    }
+                }
+            } else {
+                groupPanel.classList.remove("active");
+            }
+        }
+
+        async function toggleConnection() {
+            if (connection && connection.state === signalR.HubConnectionState.Connected) {
+                await disconnect();
+            } else {
+                await connect();
+            }
+        }
+
+        async function connect() {
+            const hubUrl = hubSelect.value;
+            const token = document.getElementById("jwt-token").value.trim();
+
+            if (!token) {
+                log("Lỗi: Bạn cần cung cấp JWT Token để kết nối hub bảo mật.", "error");
+                return;
+            }
+
+            statusBadge.className = "status-badge status-connecting";
+            statusBadge.innerText = "Connecting...";
+            log(`Đang cố gắng kết nối tới: ${hubUrl}...`, "info");
+
+            try {
+                connection = new signalR.HubConnectionBuilder()
+                    .withUrl(hubUrl, {
+                        accessTokenFactory: () => token
+                    })
+                    .withAutomaticReconnect()
+                    .build();
+
+                // Đăng ký các sự kiện lắng nghe tương ứng với từng hub
+                registerHubEvents(hubUrl);
+
+                await connection.start();
+
+                statusBadge.className = "status-badge status-connected";
+                statusBadge.innerText = "Connected";
+                btnConnect.innerText = "Disconnect";
+                btnConnect.className = "btn btn-danger";
+                log("Kết nối SignalR thành công! Đang lắng nghe các sự kiện...", "success");
+                updateGroupPanelVisibility();
+            } catch (err) {
+                statusBadge.className = "status-badge status-disconnected";
+                statusBadge.innerText = "Disconnected";
+                log(`Kết nối thất bại: ${err.message}`, "error");
+                connection = null;
+            }
+        }
+
+        async function disconnect() {
+            if (!connection) return;
+            log("Đang đóng kết nối...", "info");
+            try {
+                await connection.stop();
+                log("Đã ngắt kết nối.", "warning");
+            } catch (err) {
+                log(`Lỗi ngắt kết nối: ${err.message}`, "error");
+            } finally {
+                connection = null;
+                statusBadge.className = "status-badge status-disconnected";
+                statusBadge.innerText = "Disconnected";
+                btnConnect.innerText = "Connect";
+                btnConnect.className = "btn btn-primary";
+                updateGroupPanelVisibility();
+            }
+        }
+
+        function registerHubEvents(hubUrl) {
+            // Unsubscribe all old events if any
+            connection.off("notificationReceived");
+            connection.off("annotationAdded");
+            connection.off("annotationStatusChanged");
+            connection.off("voteCountUpdated");
+            connection.off("applicationVoteCountUpdated");
+            connection.off("pageStatusChanged");
+            connection.off("chapterProgressUpdated");
+
+            // NotificationHub
+            connection.on("notificationReceived", (data) => {
+                log(`🔔 Nhận thông báo: <pre>${JSON.stringify(data, null, 2)}</pre>`, "success");
+            });
+
+            // AnnotationHub
+            connection.on("annotationAdded", (data) => {
+                log(`🎨 Annotation Mới: <pre>${JSON.stringify(data, null, 2)}</pre>`, "success");
+            });
+            connection.on("annotationStatusChanged", (data) => {
+                log(`🔄 Annotation Thay đổi trạng thái: <pre>${JSON.stringify(data, null, 2)}</pre>`, "warning");
+            });
+
+            // BoardVotingHub
+            connection.on("voteCountUpdated", (data) => {
+                log(`🗳️ Phiếu bầu Submission: <pre>${JSON.stringify(data, null, 2)}</pre>`, "success");
+            });
+            connection.on("applicationVoteCountUpdated", (data) => {
+                log(`🗳️ Phiếu bầu Candidate Application: <pre>${JSON.stringify(data, null, 2)}</pre>`, "success");
+            });
+
+            // ChapterProgressHub
+            connection.on("pageStatusChanged", (data) => {
+                log(`📖 Trang truyện đổi trạng thái: <pre>${JSON.stringify(data, null, 2)}</pre>`, "warning");
+            });
+            connection.on("chapterProgressUpdated", (data) => {
+                log(`📈 Tiến độ chương: <pre>${JSON.stringify(data, null, 2)}</pre>`, "success");
+            });
+
+            // Reconnecting events
+            connection.onreconnecting(error => {
+                statusBadge.className = "status-badge status-connecting";
+                statusBadge.innerText = "Reconnecting...";
+                log(`Mất kết nối. Đang reconnect... (${error.message})`, "warning");
+            });
+
+            connection.onreconnected(connectionId => {
+                statusBadge.className = "status-badge status-connected";
+                statusBadge.innerText = "Connected";
+                log(`Đã phục hồi kết nối. ConnectionId mới: ${connectionId}`, "success");
+            });
+
+            connection.onclose(error => {
+                statusBadge.className = "status-badge status-disconnected";
+                statusBadge.innerText = "Disconnected";
+                log("Kết nối đã đóng hoàn toàn.", "error");
+                updateGroupPanelVisibility();
+            });
+        }
+
+        async function joinGroup() {
+            if (!connection || connection.state !== signalR.HubConnectionState.Connected) {
+                log("Vui lòng kết nối hub trước khi join group.", "error");
+                return;
+            }
+            const id = groupInput.value.trim();
+            if (!id) {
+                log("Vui lòng nhập ID hợp lệ (Guid).", "error");
+                return;
+            }
+
+            const hub = hubSelect.value;
+            try {
+                if (hub.includes("annotations")) {
+                    log(`Đang gọi JoinChapter(${id})...`, "info");
+                    await connection.invoke("JoinChapter", id);
+                    log(`Đã JOIN thành công nhóm Chapter: chapter:${id}`, "success");
+                } else if (hub.includes("boardvoting")) {
+                    // Cần xác định join submission hay application
+                    // Ở đây hỗ trợ cả hai dựa theo lựa chọn hoặc tự động check.
+                    // Hãy cung cấp 2 nút hoặc detect. Ta sẽ thử gọi JoinSubmission trước
+                    log(`Đang gọi JoinSubmission(${id})...`, "info");
+                    try {
+                        await connection.invoke("JoinSubmission", id);
+                        log(`Đã JOIN thành công nhóm Submission: submission:${id}`, "success");
+                    } catch (e) {
+                        log(`Join Submission thất bại, đang thử JoinApplication(${id})...`, "warning");
+                        await connection.invoke("JoinApplication", id);
+                        log(`Đã JOIN thành công nhóm Application: application:${id}`, "success");
+                    }
+                } else if (hub.includes("progress")) {
+                    log(`Đang gọi JoinChapter(${id})...`, "info");
+                    await connection.invoke("JoinChapter", id);
+                    log(`Đã JOIN thành công tiến độ Chapter: progress:chapter:${id}`, "success");
+                }
+            } catch (err) {
+                log(`Join Group thất bại: ${err.message}`, "error");
+            }
+        }
+
+        async function leaveGroup() {
+            if (!connection || connection.state !== signalR.HubConnectionState.Connected) return;
+            const id = groupInput.value.trim();
+            if (!id) return;
+            const hub = hubSelect.value;
+            try {
+                if (hub.includes("annotations")) {
+                    await connection.invoke("LeaveChapter", id);
+                    log(`Đã LEAVE nhóm Chapter: chapter:${id}`, "warning");
+                } else if (hub.includes("progress")) {
+                    await connection.invoke("LeaveChapter", id);
+                    log(`Đã LEAVE nhóm tiến độ Chapter: progress:chapter:${id}`, "warning");
+                }
+            } catch (err) {
+                log(`Leave Group thất bại: ${err.message}`, "error");
+            }
+        }
+    </script>
+</body>
+</html>
