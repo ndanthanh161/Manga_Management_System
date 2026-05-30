@@ -6,12 +6,14 @@ using HotChocolate.Authorization;
 using HotChocolate.Types;
 using R = MMS.Application.Common;
 
+using MMS.API.Authorization;
+
 namespace MMS.API.GraphQL;
 
 [ExtendObjectType("Mutation")]
 public class CandidateApplicationMutations
 {
-    [Authorize(Roles = new[] { "Editorial Board" })]
+    [Authorize(Policy = PolicyNames.CanVoteInSession)]
     public async Task<R.Result<CandidateApplicationDto>> VoteApplication(
         [Service] ICandidateApplicationService service,
         Guid applicationId,

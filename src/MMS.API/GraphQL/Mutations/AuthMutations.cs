@@ -17,6 +17,7 @@ public class AuthMutations
         return await authService.LoginAsync(request);
     }
 
+    [Authorize]
     public async Task<R.Result<UserInviteDto>> InviteUser(
         [Service] IAuthService authService,
         InviteRequest request,

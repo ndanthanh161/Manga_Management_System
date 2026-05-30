@@ -1,6 +1,8 @@
 using MMS.Application.DTOs.Series;
 using MMS.Application.Interfaces.Services;
 using HotChocolate.Authorization;
+using MMS.API.Authorization;
+using System.Security.Claims;
 
 namespace MMS.API.GraphQL;
 
@@ -8,7 +10,7 @@ namespace MMS.API.GraphQL;
 public class SeriesQueries
 {
     /// <summary>Lấy danh sách series đang chờ xét duyệt (Draft)</summary>
-    [Authorize(Roles = new[] { "Editorial Board", "Admin" })]
+    [Authorize(Policy = PolicyNames.CanVoteInSession)]
     public async Task<IEnumerable<SeriesResponse>> GetPendingSeries(
         [Service] ISeriesService seriesService)
     {
@@ -16,10 +18,12 @@ public class SeriesQueries
     }
 
     /// <summary>Lấy danh sách series của một Mangaka</summary>
+    [Authorize(Policy = PolicyNames.IsMangaka)]
     public async Task<IEnumerable<SeriesResponse>> GetMySeries(
         [Service] ISeriesService seriesService,
-        Guid mangakaId)
+        ClaimsPrincipal claimsPrincipal)
     {
+        var mangakaId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
         return await seriesService.GetByMangakaAsync(mangakaId);
     }
 

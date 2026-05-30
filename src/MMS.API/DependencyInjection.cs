@@ -56,21 +56,82 @@ public static class DependencyInjection
 
             options.AddPolicy(PolicyNames.IsBoardMember, policy =>
                 policy.RequireRole("Editorial Board"));
+
             // Policy phức tạp: check role + resource ownership
-            // (dùng với IAuthorizationService.AuthorizeAsync(user, resource, policy))
             options.AddPolicy(PolicyNames.CanReviewSubmission, policy =>
-                policy.AddRequirements(new TantouAssignmentRequirement()));
+                policy.RequireRole("Tantou Editor", "Editorial Board")
+                      .AddRequirements(new TantouAssignmentRequirement()));
 
             options.AddPolicy(PolicyNames.CanManageSeries, policy =>
-                policy.AddRequirements(new SeriesOwnershipRequirement()));
+                policy.RequireRole("Mangaka", "Tantou Editor", "Editorial Board")
+                      .AddRequirements(new SeriesOwnershipRequirement()));
 
             options.AddPolicy(PolicyNames.CanVoteInSession, policy =>
-                policy.AddRequirements(new BoardMemberRequirement()));
+                policy.RequireRole("Editorial Board")
+                      .AddRequirements(new BoardMemberRequirement()));
+
+            // 1. Mangaka (Tác giả) Policies
+            options.AddPolicy(PolicyNames.IsMangaka, policy =>
+                policy.RequireRole("Mangaka")); // Tác giả — tạo series, nộp bản thảo, chọn vùng, tạo chapter/page
+
+            options.AddPolicy(PolicyNames.CanAssignAssistantTasks, policy =>
+                policy.RequireRole("Mangaka")
+                      .AddRequirements(new SeriesOwnershipRequirement())); // Tác giả sở hữu series truyện
+
+            options.AddPolicy(PolicyNames.CanReviewAssistantTasks, policy =>
+                policy.RequireRole("Mangaka")
+                      .AddRequirements(new TaskOwnerRequirement())); // Tác giả sở hữu series chứa task
+
+            options.AddPolicy(PolicyNames.CanViewMySeriesMetrics, policy =>
+                policy.RequireRole("Mangaka", "Tantou Editor", "Editorial Board")
+                      .AddRequirements(new SeriesOwnershipRequirement())); // Chủ truyện, BTV phụ trách hoặc Hội đồng
+
+            // 2. Assistant (Trợ lý) Policies
+            options.AddPolicy(PolicyNames.CanAccessAssignedTask, policy =>
+                policy.RequireRole("Assistant")
+                      .AddRequirements(new TaskAssigneeRequirement())); // Trợ lý được giao nhiệm vụ
+
+            options.AddPolicy(PolicyNames.CanSubmitTaskCompletion, policy =>
+                policy.RequireRole("Assistant")
+                      .AddRequirements(new TaskAssigneeRequirement())); // Trợ lý được giao nhiệm vụ nộp bài
+
+            options.AddPolicy(PolicyNames.CanViewPersonalEarnings, policy =>
+                policy.RequireRole("Assistant")
+                      .AddRequirements(new SelfOwnershipRequirement())); // Chỉ xem thu nhập cá nhân của mình
+
+            // 3. Tantou Editor (Biên tập viên) Policies
+            options.AddPolicy(PolicyNames.CanAnnotateManuscript, policy =>
+                policy.RequireRole("Tantou Editor")
+                      .AddRequirements(new TantouAssignmentRequirement())); // Đúng BTV phụ trách bộ truyện
+
+            options.AddPolicy(PolicyNames.CanManageSeriesMetrics, policy =>
+                policy.RequireRole("Tantou Editor")
+                      .AddRequirements(new TantouAssignmentRequirement())); // Đúng BTV phụ trách quản lý số liệu
+
+            options.AddPolicy(PolicyNames.CanTrackStudioRealtime, policy =>
+                policy.RequireRole("Tantou Editor")
+                      .AddRequirements(new TantouAssignmentRequirement())); // Đúng BTV phụ trách theo dõi tiến độ
+
+            // 4. Editorial Board (Hội đồng Biên tập) Policies
+            options.AddPolicy(PolicyNames.CanInputReaderVotes, policy =>
+                policy.RequireRole("Editorial Board", "Admin")); // Hội đồng biên tập hoặc Admin nhập điểm vote
+
+            // 5. Annotation (dùng chung Tantou/Mangaka/Board)
+            options.AddPolicy(PolicyNames.CanAnnotateChapter, policy =>
+                policy.RequireRole("Tantou Editor", "Mangaka", "Editorial Board"));
+
+            // 6. Task (dùng chung Mangaka + Assistant)
+            options.AddPolicy(PolicyNames.CanUpdateTaskStatus, policy =>
+                policy.RequireRole("Mangaka", "Assistant")); // Mangaka phê duyệt, Assistant hoàn thành
+
         });
 
         services.AddScoped<IAuthorizationHandler, TantouAssignmentHandler>();
         services.AddScoped<IAuthorizationHandler, BoardMemberHandler>();
         services.AddScoped<IAuthorizationHandler, SeriesOwnershipHandler>();
+        services.AddScoped<IAuthorizationHandler, TaskAssigneeHandler>();
+        services.AddScoped<IAuthorizationHandler, TaskOwnerHandler>();
+        services.AddScoped<IAuthorizationHandler, SelfOwnershipHandler>();
         services.AddHttpContextAccessor();
 
         return services;

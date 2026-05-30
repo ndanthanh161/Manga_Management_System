@@ -92,8 +92,8 @@ public class UploadController : ControllerBase
         if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
         var userId = Guid.Parse(userIdStr);
 
-        // Check if user is Editorial Board or has rights to manage the series
-        bool isAuthorized = User.IsInRole("Editorial Board") || await _seriesService.CanUserManageSeriesAsync(request.SeriesId, userId);
+        // Check đã được xử lý bởi SeriesOwnershipHandler trong policy CanManageSeries
+        bool isAuthorized = await _seriesService.CanUserManageSeriesAsync(request.SeriesId, userId);
         if (!isAuthorized) return Forbid();
 
         var validationResult = await _fileValidator.ValidateImageAsync(request.File.OpenReadStream(), request.File.FileName, 10);
@@ -112,7 +112,7 @@ public class UploadController : ControllerBase
     }
 
     [HttpPost("series")]
-    [Authorize(Roles = "Mangaka")]
+    [Authorize(Policy = PolicyNames.CanManageSeries)]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> CreateSeries(
         [FromForm] CreateSeriesRequest request,
@@ -196,7 +196,7 @@ public class UploadController : ControllerBase
     }
 
     [HttpPost("task-result")]
-    [Authorize(Roles = "Assistant,Mangaka")]
+    [Authorize(Policy = PolicyNames.CanUpdateTaskStatus)]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadTaskResult(
         [FromForm] UploadTaskResultRequest request,

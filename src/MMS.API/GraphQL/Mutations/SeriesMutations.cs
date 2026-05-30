@@ -6,12 +6,14 @@ using System.Security.Claims;
 using MMS.Application.Common;
 using R = MMS.Application.Common;
 
+using MMS.API.Authorization;
+
 namespace MMS.API.GraphQL;
 
 [ExtendObjectType("Mutation")]
 public class SeriesMutations
 {
-    [Authorize(Roles = new[] { "Editorial Board" })]
+    [Authorize(Policy = PolicyNames.CanVoteInSession)]
     public async Task<SeriesRankingResponse> AddSeriesRanking(
         [Service] ISeriesService seriesService,
         Guid seriesId,
@@ -21,7 +23,7 @@ public class SeriesMutations
         return await seriesService.AddRankingAsync(seriesId, position, period);
     }
 
-    [Authorize(Roles = new[] { "Editorial Board" })]
+    [Authorize(Policy = PolicyNames.CanVoteInSession)]
     public async Task<bool> TriggerSurvivalCheck(
         [Service] ISeriesService seriesService)
     {
@@ -29,7 +31,7 @@ public class SeriesMutations
         return true;
     }
 
-    [Authorize(Roles = new[] { "Editorial Board" })]
+    [Authorize(Policy = PolicyNames.CanVoteInSession)]
     public async Task<R.Result<SeriesResponse>> VoteSeries(
         [Service] ISeriesService seriesService,
         Guid seriesId,
