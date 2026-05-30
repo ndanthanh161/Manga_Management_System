@@ -11,7 +11,7 @@ public class CandidateApplicationQueries
     /// <summary>
     /// Admin xem danh sách đơn ứng tuyển đang chờ duyệt
     /// </summary>
-    [Authorize(Roles = new[] { "Admin" })]
+    [Authorize(Roles = new[] { "Editorial Board" })]
     public async Task<R.Result<IEnumerable<CandidateApplicationDto>>> GetPendingApplications(
         [Service] ICandidateApplicationService service)
     {
@@ -21,7 +21,7 @@ public class CandidateApplicationQueries
     /// <summary>
     /// Admin xem chi tiết một đơn ứng tuyển
     /// </summary>
-    [Authorize(Roles = new[] { "Admin" })]
+    [Authorize(Roles = new[] { "Editorial Board" })]
     public async Task<R.Result<CandidateApplicationDto>> GetApplicationById(
         [Service] ICandidateApplicationService service,
         Guid id)

@@ -112,7 +112,7 @@ public class UploadController : ControllerBase
     }
 
     [HttpPost("series")]
-    [Authorize(Roles = "Mangaka,Admin")]
+    [Authorize(Roles = "Mangaka")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> CreateSeries(
         [FromForm] CreateSeriesRequest request,
@@ -131,7 +131,7 @@ public class UploadController : ControllerBase
     }
 
     [HttpPut("series/{id}")]
-    [Authorize(Roles = "Mangaka,Admin")]
+    [Authorize(Policy = PolicyNames.CanManageSeries)]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UpdateSeries(
         Guid id,
@@ -151,7 +151,7 @@ public class UploadController : ControllerBase
     }
 
     [HttpDelete("series/{id}")]
-    [Authorize(Roles = "Mangaka,Admin")]
+    [Authorize(Policy = PolicyNames.CanManageSeries)]
     public async Task<IActionResult> DeleteSeries(
         Guid id,
         CancellationToken ct)
@@ -196,7 +196,7 @@ public class UploadController : ControllerBase
     }
 
     [HttpPost("task-result")]
-    [Authorize(Roles = "Assistant,Mangaka,Admin")]
+    [Authorize(Roles = "Assistant,Mangaka")]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadTaskResult(
         [FromForm] UploadTaskResultRequest request,
