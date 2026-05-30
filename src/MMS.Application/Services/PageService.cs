@@ -36,13 +36,19 @@ public class PageService : IPageService
         return page.Adapt<PageResponse>();
     }
 
+    public async Task<PageResponse?> GetByIdAsync(Guid pageId)
+    {
+        var page = await _uow.Pages.GetByIdAsync(pageId);
+        return page == null ? null : page.Adapt<PageResponse>();
+    }
+
     public async Task<IEnumerable<PageResponse>> GetByChapterAsync(Guid chapterId)
     {
         var list = await _uow.Pages.GetCurrentPagesByChapterAsync(chapterId);
         return list.Adapt<IEnumerable<PageResponse>>();
     }
 
-    public async Task<Result<PageResponse>> UploadPageVersionAsync(Guid chapterId, int pageNumber, 
+    public async Task<Result<PageResponse>> UploadPageVersionAsync(Guid chapterId, int pageNumber,
         Stream fileStream, string fileName, Guid userId, CancellationToken ct = default)
     {
         var chapter = await _uow.Chapters.GetByIdAsync(chapterId);
@@ -77,7 +83,7 @@ public class PageService : IPageService
 
         var folder = $"mms/chapter_{chapterId}";
         var hint = $"page_{pageNumber}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
-        
+
         // Seek stream back to beginning after validation
         if (fileStream.CanSeek)
         {

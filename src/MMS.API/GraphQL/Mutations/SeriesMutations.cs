@@ -38,7 +38,14 @@ public class SeriesMutations
         string? comment,
         ClaimsPrincipal claimsPrincipal)
     {
-        var userId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
-        return await seriesService.VoteSeriesAsync(seriesId, userId, vote, proposedTantouId, comment);
+        try 
+        {
+            var userId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
+            return await seriesService.VoteSeriesAsync(seriesId, userId, vote, proposedTantouId, comment);
+        }
+        catch (Exception ex)
+        {
+            return R.Result<SeriesResponse>.Failure("INTERNAL_ERROR", ex.ToString());
+        }
     }
 }

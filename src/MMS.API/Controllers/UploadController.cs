@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using MMS.API.Authorization;
 using MMS.Application.DTOs.Page;
 using MMS.Application.DTOs.Series;
+using MMS.Application.DTOs.Task;
 using MMS.Application.DTOs.User;
 using MMS.Application.Interfaces.Services;
 using System.Security.Claims;
@@ -129,6 +130,44 @@ public class UploadController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPut("series/{id}")]
+    [Authorize(Roles = "Mangaka,Admin")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UpdateSeries(
+        Guid id,
+        [FromForm] UpdateSeriesRequest request,
+        CancellationToken ct)
+    {
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        var userId = Guid.Parse(userIdStr);
+
+        var result = await _seriesService.UpdateAsync(id, userId, request, ct);
+
+        if (!result.Succeeded)
+            return StatusCode(result.StatusCode, result);
+
+        return Ok(result);
+    }
+
+    [HttpDelete("series/{id}")]
+    [Authorize(Roles = "Mangaka,Admin")]
+    public async Task<IActionResult> DeleteSeries(
+        Guid id,
+        CancellationToken ct)
+    {
+        var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userIdStr)) return Unauthorized();
+        var userId = Guid.Parse(userIdStr);
+
+        var result = await _seriesService.DeleteAsync(id, userId, ct);
+
+        if (!result.Succeeded)
+            return StatusCode(result.StatusCode, result);
+
+        return Ok(result);
+    }
+
     [HttpPost("avatar")]
     [Authorize]
     [Consumes("multipart/form-data")]
@@ -146,6 +185,33 @@ public class UploadController : ControllerBase
 
         var folder = "mms/avatars";
         var hint = $"{userIdStr}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+
+        using var stream = request.File.OpenReadStream();
+        var uploadResult = await _imageStorageService.UploadImageAsync(stream, folder, hint, ct);
+
+        if (!uploadResult.Succeeded) return StatusCode(500, uploadResult.Message);
+
+        var urls = _imageStorageService.BuildAllUrls(uploadResult.Data!.PublicId);
+        return Ok(new { upload = uploadResult.Data, urls = urls });
+    }
+
+    [HttpPost("task-result")]
+    [Authorize(Roles = "Assistant,Mangaka,Admin")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadTaskResult(
+        [FromForm] UploadTaskResultRequest request,
+        CancellationToken ct)
+    {
+        if (request.File == null || request.File.Length == 0)
+        {
+            return BadRequest("File is empty.");
+        }
+
+        var validationResult = await _fileValidator.ValidateImageAsync(request.File.OpenReadStream(), request.File.FileName, 20);
+        if (!validationResult.Succeeded) return BadRequest(validationResult.Message);
+
+        var folder = $"mms/task_results/{request.TaskId}";
+        var hint = $"task_{request.TaskId}_{Guid.NewGuid().ToString("N").Substring(0, 8)}";
 
         using var stream = request.File.OpenReadStream();
         var uploadResult = await _imageStorageService.UploadImageAsync(stream, folder, hint, ct);

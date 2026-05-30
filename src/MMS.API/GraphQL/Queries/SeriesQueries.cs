@@ -1,11 +1,20 @@
 using MMS.Application.DTOs.Series;
 using MMS.Application.Interfaces.Services;
+using HotChocolate.Authorization;
 
 namespace MMS.API.GraphQL;
 
 [ExtendObjectType(typeof(UserQueries))]
 public class SeriesQueries
 {
+    /// <summary>Lấy danh sách series đang chờ xét duyệt (Draft)</summary>
+    [Authorize(Roles = new[] { "Editorial Board", "Admin" })]
+    public async Task<IEnumerable<SeriesResponse>> GetPendingSeries(
+        [Service] ISeriesService seriesService)
+    {
+        return await seriesService.GetPendingSeriesAsync();
+    }
+
     /// <summary>Lấy danh sách series của một Mangaka</summary>
     public async Task<IEnumerable<SeriesResponse>> GetMySeries(
         [Service] ISeriesService seriesService,

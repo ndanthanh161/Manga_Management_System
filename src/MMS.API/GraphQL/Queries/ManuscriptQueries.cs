@@ -7,7 +7,7 @@ using R = MMS.Application.Common;
 
 namespace MMS.API.GraphQL;
 
-[ExtendObjectType("Query")]
+[ExtendObjectType(typeof(UserQueries))]
 public class ManuscriptQueries
 {
     [Authorize]

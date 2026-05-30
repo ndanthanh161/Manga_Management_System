@@ -128,6 +128,28 @@ public class SeriesService : ISeriesService
         }
     }
 
+    public async Task<Result<bool>> DeleteAsync(Guid id, Guid mangakaId, CancellationToken ct = default)
+    {
+        var series = await _uow.Series.GetByIdAsync(id);
+        if (series == null)
+            return Result<bool>.NotFound("SERIES_NOT_FOUND", $"Series {id} not found.");
+
+        if (series.AuthorId != mangakaId)
+            return Result<bool>.Forbidden("FORBIDDEN", "Bạn không có quyền xóa series này.");
+
+        try
+        {
+            _uow.Series.Remove(series);
+            await _uow.SaveChangesAsync();
+
+            return Result<bool>.Success(true, "Xóa series thành công.");
+        }
+        catch (Exception ex)
+        {
+            return Result<bool>.Failure("DELETE_ERROR", ex.Message);
+        }
+    }
+
     public async Task<SeriesResponse?> GetByIdAsync(Guid id)
     {
         var series = await _uow.Series.GetWithRankingsAsync(id);
@@ -138,6 +160,37 @@ public class SeriesService : ISeriesService
     {
         var list = await _uow.Series.GetByAuthorIdAsync(mangakaId);
         return list.Adapt<IEnumerable<SeriesResponse>>();
+    }
+
+    public async Task<IEnumerable<SeriesResponse>> GetPendingSeriesAsync()
+    {
+        var list = (await _uow.Series.GetPendingSeriesAsync()).ToList();
+        var responses = new List<SeriesResponse>();
+        foreach (var series in list)
+        {
+            var response = series.Adapt<SeriesResponse>();
+            var votes = await _uow.SeriesVotes.FindAsync(v => v.SeriesId == series.Id);
+            
+            var voteDtos = new System.Collections.Generic.List<SeriesVoteDto>();
+            foreach (var vote in votes)
+            {
+                var member = await _uow.Users.GetByIdAsync(vote.BoardMemberId);
+                voteDtos.Add(new SeriesVoteDto(
+                    vote.Id,
+                    vote.SeriesId,
+                    vote.BoardMemberId,
+                    member?.Username ?? "EB Member",
+                    vote.VoteType.ToString(),
+                    vote.ProposedTantouId,
+                    vote.Comment,
+                    vote.CreatedAt
+                ));
+            }
+            
+            response = response with { Votes = voteDtos };
+            responses.Add(response);
+        }
+        return responses;
     }
 
     public async Task<IEnumerable<SeriesRankingResponse>> GetRankingsAsync(Guid seriesId)

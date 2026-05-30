@@ -66,4 +66,9 @@ public class UserRepository : GenericRepository<User>, IUserRepository
             .Include(u => u.Roles)
             .Where(u => u.MangakaId == mangakaId)
             .ToListAsync();
+
+    public async Task<IEnumerable<User>> GetAllWithRolesAsync()
+        => await _context.Users
+            .Include(u => u.Roles)
+            .ToListAsync();
 }

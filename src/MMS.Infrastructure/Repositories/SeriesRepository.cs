@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using MMS.Application.Interfaces.Repositories;
 using MMS.Domain.Entities;
+using MMS.Domain.Enums;
 using MMS.Infrastructure.Data;
 
 namespace MMS.Infrastructure.Repositories;
@@ -31,6 +32,15 @@ public class SeriesRepository : GenericRepository<Series>, ISeriesRepository
         return await _context.Series
             .Include(s => s.Author)
             .Include(s => s.Rankings)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<Series>> GetPendingSeriesAsync()
+    {
+        return await _context.Series
+            .Include(s => s.Author)
+            .Where(s => s.Status == SeriesStatus.Draft)
+            .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
     }
 

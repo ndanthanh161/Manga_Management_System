@@ -33,7 +33,7 @@ public class UserService : IUserService
 
     public async Task<Result<IEnumerable<UserDto>>> GetAllUsersAsync()
     {
-        var users = await _unitOfWork.Users.GetAllAsync();
+        var users = await _unitOfWork.Users.GetAllWithRolesAsync();
         var dtos = users.Adapt<List<UserDto>>();
 
         var salaries = await _unitOfWork.AssistantSalaries.GetAllAsync();

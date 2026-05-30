@@ -12,4 +12,5 @@ public interface IUserRepository : IGenericRepository<User>
     Task UpdateLoginSessionAsync(Guid userId, string refreshToken);
     Task RemoveRefreshTokenAsync(string refreshToken);
     Task<IEnumerable<User>> GetAssistantsByMangakaAsync(Guid mangakaId);
+    Task<IEnumerable<User>> GetAllWithRolesAsync();
 }

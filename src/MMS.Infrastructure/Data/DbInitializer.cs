@@ -13,7 +13,7 @@ public static class DbInitializer
         var context = scope.ServiceProvider.GetRequiredService<MmsDbContext>();
         var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
 
-        context.Database.EnsureCreated();
+        context.Database.Migrate();
 
         // Seed Roles nếu chưa có
         var roleNames = new[] { "Mangaka", "Assistant", "Tantou Editor", "Editorial Board" };

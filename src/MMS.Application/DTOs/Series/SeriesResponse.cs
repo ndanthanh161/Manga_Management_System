@@ -10,5 +10,6 @@ public record SeriesResponse(
     Guid AuthorId,
     string AuthorName,
     DateTime CreatedAt,
-    DateTime? UpdatedAt
+    DateTime? UpdatedAt,
+    System.Collections.Generic.List<SeriesVoteDto>? Votes = null
 );
