@@ -15,6 +15,9 @@ public static class GrpcClientRegistrationExtensions
         var options = configuration.GetSection("Grpc").Get<GrpcClientOptions>()
             ?? new GrpcClientOptions();
 
+        // Đăng ký interceptor vào Dependency Injection
+        services.AddTransient<GrpcAuthClientInterceptor>();
+
         // ImageProcessor client (Phase 3 sẽ dùng)
         services.AddGrpcClient<ImageProcessor.ImageProcessorClient>(o =>
         {
