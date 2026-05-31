@@ -186,11 +186,6 @@ public class SubmissionService : ISubmissionService
         }
     }
 
-    public async Task<Result<SubmissionResponse>> ResolveAsync(Guid submissionId, Guid editorId, bool approved, string feedback)
-    {
-        var decision = approved ? WorkflowStatus.Approved : WorkflowStatus.Rejected;
-        return await FinalizeBoardDecisionAsync(submissionId, decision, feedback, editorId);
-    }
 
     // --- State Machine Workflow Implementation ---
 
@@ -226,7 +221,15 @@ public class SubmissionService : ISubmissionService
                 return Result<SubmissionResponse>.Forbidden("FORBIDDEN", "Bạn không có quyền nộp bản thảo cho bộ truyện này.");
             }
 
-            if (series.TantouEditorId == null || series.TantouEditorId == Guid.Empty)
+            WorkflowStatus initialStatus = WorkflowStatus.Submitted;
+            string transitionComment = "Gửi bản thảo để Tantou phụ trách xét duyệt";
+
+            if (series.Status == SeriesStatus.Draft)
+            {
+                initialStatus = WorkflowStatus.ForwardedToBoard;
+                transitionComment = "Gửi bản thảo ứng tuyển Series lên Hội đồng Biên tập xem xét";
+            }
+            else if (series.TantouEditorId == null || series.TantouEditorId == Guid.Empty)
             {
                 return Result<SubmissionResponse>.Failure("NO_TANTOU_ASSIGNED", "Bộ truyện chưa được gán Biên tập viên phụ trách (Tantou). Vui lòng liên hệ Admin.");
             }
@@ -239,14 +242,14 @@ public class SubmissionService : ISubmissionService
                 Note = request.Note ?? string.Empty,
                 SeriesId = series.Id,
                 MangakaId = userId,
-                AssignedTantouId = series.TantouEditorId,
-                Status = WorkflowStatus.Submitted,
+                AssignedTantouId = series.Status == SeriesStatus.Draft ? null : series.TantouEditorId,
+                Status = initialStatus,
                 SubmittedAt = DateTime.UtcNow
             };
 
             // Link manuscript
             manuscript.SubmissionId = submission.Id;
-            manuscript.Status = ManuscriptStatus.Submitted;
+            manuscript.Status = initialStatus == WorkflowStatus.ForwardedToBoard ? ManuscriptStatus.InReview : ManuscriptStatus.Submitted;
 
             await _uow.Submissions.AddAsync(submission);
             _uow.Manuscripts.Update(manuscript);
@@ -256,16 +259,16 @@ public class SubmissionService : ISubmissionService
                 Id = Guid.NewGuid(),
                 SubmissionId = submission.Id,
                 FromStatus = WorkflowStatus.Draft,
-                ToStatus = WorkflowStatus.Submitted,
+                ToStatus = initialStatus,
                 ActorUserId = userId,
-                Comment = "Gửi bản thảo để Tantou phụ trách xét duyệt",
+                Comment = transitionComment,
                 OccurredAt = DateTime.UtcNow
             };
             await _uow.SubmissionTransitions.AddAsync(transition);
 
             await _uow.SaveChangesAsync();
 
-            if (series.TantouEditorId.HasValue)
+            if (series.TantouEditorId.HasValue && initialStatus == WorkflowStatus.Submitted)
             {
                 await _eventPublisher.PublishAsync(new SubmissionStatusChangedEvent(
                     submission.Id,
@@ -463,7 +466,7 @@ public class SubmissionService : ISubmissionService
         }
     }
 
-    public async Task<Result<SubmissionResponse>> FinalizeBoardDecisionAsync(Guid submissionId, WorkflowStatus decision, string comment, Guid actorId)
+    public async Task<Result<SubmissionResponse>> FinalizeBoardDecisionAsync(Guid submissionId, WorkflowStatus decision, string comment, Guid actorId, Guid? assignTantouId = null)
     {
         try
         {
@@ -489,11 +492,20 @@ public class SubmissionService : ISubmissionService
                 var series = await _uow.Series.GetByIdAsync(submission.SeriesId);
                 if (series != null)
                 {
-                    series.Status = SeriesStatus.Ongoing;
-                    if (submission.AssignedTantouId.HasValue)
+                    if (series.Status == SeriesStatus.Draft)
+                    {
+                        if (assignTantouId == null || assignTantouId == Guid.Empty)
+                        {
+                            return Result<SubmissionResponse>.Failure("TANTOU_REQUIRED", "Vui lòng chọn Biên tập viên phụ trách (Tantou) khi duyệt tác phẩm mới.");
+                        }
+                        series.TantouEditorId = assignTantouId.Value;
+                    }
+                    else if (submission.AssignedTantouId.HasValue)
                     {
                         series.TantouEditorId = submission.AssignedTantouId.Value;
                     }
+
+                    series.Status = SeriesStatus.Ongoing;
                     _uow.Series.Update(series);
 
                     if (!series.AuthorId.HasValue || series.AuthorId.Value == Guid.Empty)

@@ -11,19 +11,7 @@ namespace MMS.API.GraphQL;
 [ExtendObjectType("Mutation")]
 public class SubmissionMutations
 {
-    public async Task<SubmissionResponse> CreateSubmission(
-        [Service] ISubmissionService submissionService,
-        ClaimsPrincipal claimsPrincipal,
-        CreateSubmissionRequest input)
-    {
-        var mangakaId = GraphQLHelper.GetCurrentUserIdOptional(claimsPrincipal);
-        var result = await submissionService.CreateAsync(mangakaId, input);
-        if (!result.Succeeded)
-        {
-            throw new Exception(result.Message ?? "Khởi tạo bản thảo thất bại.");
-        }
-        return result.Data!;
-    }
+
 
     [Authorize(Policy = PolicyNames.CanVoteInSession)]
     public async Task<SubmissionResponse> VoteSubmission(
@@ -42,31 +30,27 @@ public class SubmissionMutations
         return result.Data!;
     }
 
-    [Authorize(Policy = PolicyNames.CanReviewSubmission)]
-    public async Task<SubmissionResponse> ResolveSubmission(
-        [Service] ISubmissionService submissionService,
-        ClaimsPrincipal claimsPrincipal,
-        Guid submissionId,
-        bool approved,
-        string feedback)
-    {
-        var editorId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
-        var result = await submissionService.ResolveAsync(submissionId, editorId, approved, feedback);
-        if (!result.Succeeded)
-        {
-            throw new Exception(result.Message ?? "Giải quyết bản thảo thất bại.");
-        }
-        return result.Data!;
-    }
+
 
     [Authorize]
-    public async Task<SubmissionResponse> SubmitManuscript(
+    public async Task<SubmissionResponse> SubmitChapterForReview(
         [Service] ISubmissionService submissionService,
+        [Service] IManuscriptService manuscriptService,
         ClaimsPrincipal claimsPrincipal,
-        Guid manuscriptId,
+        Guid chapterId,
         string? note)
     {
         var userId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
+        
+        // 1. Tự động Snapshot Chapter thành Manuscript
+        var snapshotResult = await manuscriptService.SnapshotChapterAsync(chapterId, "Bản thảo nộp duyệt", userId);
+        if (!snapshotResult.Succeeded || snapshotResult.Data == null)
+        {
+            throw new Exception(snapshotResult.Message ?? "Khởi tạo bản thảo từ Chapter thất bại.");
+        }
+
+        // 2. Nộp Manuscript vừa tạo
+        var manuscriptId = snapshotResult.Data.Id;
         var result = await submissionService.SubmitForReviewAsync(new SubmitForReviewRequest(manuscriptId, note), userId);
         if (!result.Succeeded)
         {
@@ -128,10 +112,11 @@ public class SubmissionMutations
         ClaimsPrincipal claimsPrincipal,
         Guid submissionId,
         WorkflowStatus decision,
-        string comment)
+        string comment,
+        Guid? assignTantouId = null)
     {
         var userId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
-        var result = await submissionService.FinalizeBoardDecisionAsync(submissionId, decision, comment, userId);
+        var result = await submissionService.FinalizeBoardDecisionAsync(submissionId, decision, comment, userId, assignTantouId);
         if (!result.Succeeded)
         {
             throw new Exception(result.Message ?? "Hội đồng đưa ra quyết định cuối thất bại.");

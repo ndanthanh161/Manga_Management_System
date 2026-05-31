@@ -31,23 +31,4 @@ public class SeriesMutations
         return true;
     }
 
-    [Authorize(Policy = PolicyNames.CanVoteInSession)]
-    public async Task<R.Result<SeriesResponse>> VoteSeries(
-        [Service] ISeriesService seriesService,
-        Guid seriesId,
-        VoteType vote,
-        Guid? proposedTantouId,
-        string? comment,
-        ClaimsPrincipal claimsPrincipal)
-    {
-        try 
-        {
-            var userId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
-            return await seriesService.VoteSeriesAsync(seriesId, userId, vote, proposedTantouId, comment);
-        }
-        catch (Exception ex)
-        {
-            return R.Result<SeriesResponse>.Failure("INTERNAL_ERROR", ex.ToString());
-        }
-    }
 }

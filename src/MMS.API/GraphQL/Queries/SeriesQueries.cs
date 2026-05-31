@@ -9,14 +9,6 @@ namespace MMS.API.GraphQL;
 [ExtendObjectType(typeof(UserQueries))]
 public class SeriesQueries
 {
-    /// <summary>Lấy danh sách series đang chờ xét duyệt (Draft)</summary>
-    [Authorize(Policy = PolicyNames.CanVoteInSession)]
-    public async Task<IEnumerable<SeriesResponse>> GetPendingSeries(
-        [Service] ISeriesService seriesService)
-    {
-        return await seriesService.GetPendingSeriesAsync();
-    }
-
     /// <summary>Lấy danh sách series của một Mangaka</summary>
     [UseFiltering] 
     [Authorize(Policy = PolicyNames.IsMangaka)]
