@@ -16,6 +16,7 @@ public class SeriesQueries
     }
 
     /// <summary>Lấy danh sách series của một Mangaka</summary>
+    [UseFiltering] 
     public async Task<IEnumerable<SeriesResponse>> GetMySeries(
         [Service] ISeriesService seriesService,
         Guid mangakaId)
