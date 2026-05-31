@@ -12,13 +12,3 @@ public record CandidateApplicationDto
     public DateTime CreatedAt { get; init; }
     public DateTime? ReviewedAt { get; init; }
 }
-
-public record CandidateApplicationAssetDto(
-    Guid Id,
-    string Name,
-    string Type,
-    string FileUrl,
-    string PublicId,
-    long Size,
-    DateTime UploadedAt
-);

@@ -3,12 +3,14 @@ using MMS.Application.Interfaces.Services;
 using System.Security.Claims;
 using HotChocolate.Authorization;
 
+using MMS.API.Authorization;
+
 namespace MMS.API.GraphQL;
 
 [ExtendObjectType("Mutation")]
 public class TaskMutations
 {
-    [Authorize(Roles = new[] { "Mangaka" })]
+    [Authorize(Policy = PolicyNames.CanAssignAssistantTasks)]
     public async Task<TaskResponse> AssignTask(
         [Service] ITaskService taskService,
         ClaimsPrincipal claimsPrincipal,
@@ -18,7 +20,7 @@ public class TaskMutations
         return await taskService.AssignTaskAsync(mangakaId, input);
     }
 
-    [Authorize(Roles = new[] { "Mangaka", "Assistant" })]
+    [Authorize(Policy = PolicyNames.CanUpdateTaskStatus)]
     public async Task<TaskResponse> UpdateTaskStatus(
         [Service] ITaskService taskService,
         ClaimsPrincipal claimsPrincipal,

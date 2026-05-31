@@ -1,5 +1,6 @@
 using MMS.Application.DTOs.Region;
 using MMS.Application.Interfaces.Services;
+using HotChocolate.Authorization;
 
 namespace MMS.API.GraphQL;
 
@@ -7,6 +8,7 @@ namespace MMS.API.GraphQL;
 public class RegionQueries
 {
     /// <summary>Xem các vùng đã chọn trên một trang truyện</summary>
+    [Authorize]
     public async Task<IEnumerable<RegionResponse>> GetRegionsByPage(
         [Service] IRegionService regionService,
         Guid pageId)

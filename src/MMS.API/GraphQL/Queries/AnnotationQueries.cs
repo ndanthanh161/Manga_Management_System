@@ -1,5 +1,6 @@
 using MMS.Application.DTOs.Annotation;
 using MMS.Application.Interfaces.Services;
+using HotChocolate.Authorization;
 
 namespace MMS.API.GraphQL;
 
@@ -7,6 +8,7 @@ namespace MMS.API.GraphQL;
 public class AnnotationQueries
 {
     /// <summary>Xem các annotations (ghi chú phê duyệt) trên một trang</summary>
+    [Authorize]
     public async Task<IEnumerable<AnnotationResponse>> GetAnnotationsByPage(
         [Service] IAnnotationService annotationService,
         Guid pageId)
@@ -20,6 +22,7 @@ public class AnnotationQueries
     }
 
     /// <summary>Lấy số lượng annotation chưa được resolve cho từng trang trong chapter</summary>
+    [Authorize]
     public async Task<IEnumerable<UnresolvedCountResponse>> GetUnresolvedCountByChapter(
         [Service] IAnnotationService annotationService,
         Guid chapterId)

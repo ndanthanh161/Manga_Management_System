@@ -3,12 +3,14 @@ using MMS.Application.Interfaces.Services;
 using System.Security.Claims;
 using HotChocolate.Authorization;
 
+using MMS.API.Authorization;
+
 namespace MMS.API.GraphQL;
 
 [ExtendObjectType("Mutation")]
 public class AnnotationMutations
 {
-    [Authorize(Roles = new[] { "Tantou Editor", "Mangaka", "Editorial Board" })]
+    [Authorize(Policy = PolicyNames.CanAnnotateChapter)]
     public async Task<AnnotationResponse> CreateAnnotation(
         [Service] IAnnotationService annotationService,
         ClaimsPrincipal claimsPrincipal,
@@ -23,7 +25,7 @@ public class AnnotationMutations
         return result.Data!;
     }
 
-    [Authorize(Roles = new[] { "Mangaka", "Assistant" })]
+    [Authorize]
     public async Task<AnnotationResponse> ResolveAnnotation(
         [Service] IAnnotationService annotationService,
         ClaimsPrincipal claimsPrincipal,
@@ -34,7 +36,7 @@ public class AnnotationMutations
         return result.Data!;
     }
 
-    [Authorize(Roles = new[] { "Tantou Editor", "Editorial Board" })]
+    [Authorize(Policy = PolicyNames.CanAnnotateManuscript)]
     public async Task<AnnotationResponse> ReviewAnnotation(
         [Service] IAnnotationService annotationService,
         ClaimsPrincipal claimsPrincipal,

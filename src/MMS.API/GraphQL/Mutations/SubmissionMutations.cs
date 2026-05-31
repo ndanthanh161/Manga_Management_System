@@ -4,6 +4,8 @@ using MMS.Domain.Enums;
 using System.Security.Claims;
 using HotChocolate.Authorization;
 
+using MMS.API.Authorization;
+
 namespace MMS.API.GraphQL;
 
 [ExtendObjectType("Mutation")]
@@ -23,7 +25,7 @@ public class SubmissionMutations
         return result.Data!;
     }
 
-    [Authorize(Roles = new[] { "Editorial Board", "Tantou Editor" })]
+    [Authorize(Policy = PolicyNames.CanVoteInSession)]
     public async Task<SubmissionResponse> VoteSubmission(
         [Service] ISubmissionService submissionService,
         ClaimsPrincipal claimsPrincipal,
@@ -40,7 +42,7 @@ public class SubmissionMutations
         return result.Data!;
     }
 
-    [Authorize(Roles = new[] { "Editorial Board", "Tantou Editor" })]
+    [Authorize(Policy = PolicyNames.CanReviewSubmission)]
     public async Task<SubmissionResponse> ResolveSubmission(
         [Service] ISubmissionService submissionService,
         ClaimsPrincipal claimsPrincipal,
@@ -73,7 +75,7 @@ public class SubmissionMutations
         return result.Data!;
     }
 
-    [Authorize(Roles = new[] { "Tantou Editor", "Editorial Board" })]
+    [Authorize(Policy = PolicyNames.CanReviewSubmission)]
     public async Task<SubmissionResponse> AcceptSubmission(
         [Service] ISubmissionService submissionService,
         ClaimsPrincipal claimsPrincipal,
@@ -88,7 +90,7 @@ public class SubmissionMutations
         return result.Data!;
     }
 
-    [Authorize(Roles = new[] { "Tantou Editor", "Editorial Board" })]
+    [Authorize(Policy = PolicyNames.CanReviewSubmission)]
     public async Task<SubmissionResponse> ForwardToBoard(
         [Service] ISubmissionService submissionService,
         ClaimsPrincipal claimsPrincipal,
@@ -104,7 +106,7 @@ public class SubmissionMutations
         return result.Data!;
     }
 
-    [Authorize(Roles = new[] { "Tantou Editor", "Editorial Board" })]
+    [Authorize(Policy = PolicyNames.CanReviewSubmission)]
     public async Task<SubmissionResponse> ReturnForRevision(
         [Service] ISubmissionService submissionService,
         ClaimsPrincipal claimsPrincipal,
@@ -120,7 +122,7 @@ public class SubmissionMutations
         return result.Data!;
     }
 
-    [Authorize(Roles = new[] { "Editorial Board", "Editorial Board" })]
+    [Authorize(Policy = PolicyNames.CanVoteInSession)]
     public async Task<SubmissionResponse> FinalizeBoardDecision(
         [Service] ISubmissionService submissionService,
         ClaimsPrincipal claimsPrincipal,
