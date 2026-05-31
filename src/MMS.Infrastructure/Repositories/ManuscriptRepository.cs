@@ -14,16 +14,18 @@ public class ManuscriptRepository : GenericRepository<Manuscript>, IManuscriptRe
     public async Task<Manuscript?> GetCurrentByChapterAsync(Guid chapterId)
     {
         return await _dbSet
+            .AsNoTracking()
             .Include(m => m.PageRefs)
             .FirstOrDefaultAsync(m => m.ChapterId == chapterId && m.IsCurrentVersion);
     }
 
     public async Task<List<Manuscript>> GetVersionHistoryAsync(Guid manuscriptId)
     {
-        var manuscript = await _dbSet.FindAsync(manuscriptId);
+        var manuscript = await _dbSet.AsNoTracking().FirstOrDefaultAsync(m => m.Id == manuscriptId);
         if (manuscript == null) return new List<Manuscript>();
 
         return await _dbSet
+            .AsNoTracking()
             .Where(m => m.ChapterId == manuscript.ChapterId)
             .OrderBy(m => m.Version)
             .ToListAsync();

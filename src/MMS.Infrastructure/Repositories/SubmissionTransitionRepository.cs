@@ -14,6 +14,7 @@ public class SubmissionTransitionRepository : GenericRepository<SubmissionTransi
     public async Task<IEnumerable<SubmissionTransition>> GetBySubmissionIdAsync(Guid submissionId)
     {
         return await _dbSet
+            .AsNoTracking()
             .Include(t => t.ActorUser)
             .Where(t => t.SubmissionId == submissionId)
             .OrderBy(t => t.OccurredAt)

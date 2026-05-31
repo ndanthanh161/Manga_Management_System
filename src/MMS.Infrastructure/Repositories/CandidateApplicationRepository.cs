@@ -15,6 +15,7 @@ public class CandidateApplicationRepository : GenericRepository<CandidateApplica
     public async Task<CandidateApplication?> GetWithDetailsAsync(Guid id)
     {
         return await _context.CandidateApplications
+            .AsNoTracking()
             .Include(a => a.User)
             .Include(a => a.Series)
             .Include(a => a.ApprovedByUser)
@@ -26,6 +27,7 @@ public class CandidateApplicationRepository : GenericRepository<CandidateApplica
     public async Task<IEnumerable<CandidateApplication>> GetAllPendingAsync()
     {
         return await _context.CandidateApplications
+            .AsNoTracking()
             .Include(a => a.User)
             .Include(a => a.Series)
             .Include(a => a.Assets)

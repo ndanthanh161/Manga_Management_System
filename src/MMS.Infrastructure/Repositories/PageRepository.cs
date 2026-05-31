@@ -14,12 +14,14 @@ public class PageRepository : GenericRepository<Page>, IPageRepository
     public async Task<Page?> GetCurrentByChapterAndNumberAsync(Guid chapterId, int pageNumber)
     {
         return await _dbSet
+            .AsNoTracking()
             .FirstOrDefaultAsync(p => p.ChapterId == chapterId && p.PageNumber == pageNumber && p.IsCurrentVersion);
     }
 
     public async Task<List<Page>> GetPageHistoryAsync(Guid chapterId, int pageNumber)
     {
         return await _dbSet
+            .AsNoTracking()
             .Where(p => p.ChapterId == chapterId && p.PageNumber == pageNumber)
             .OrderBy(p => p.Version)
             .ToListAsync();
@@ -28,6 +30,7 @@ public class PageRepository : GenericRepository<Page>, IPageRepository
     public async Task<List<Page>> GetCurrentPagesByChapterAsync(Guid chapterId)
     {
         return await _dbSet
+            .AsNoTracking()
             .Where(p => p.ChapterId == chapterId && p.IsCurrentVersion)
             .OrderBy(p => p.PageNumber)
             .ToListAsync();

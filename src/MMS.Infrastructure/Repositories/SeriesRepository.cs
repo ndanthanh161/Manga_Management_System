@@ -13,6 +13,7 @@ public class SeriesRepository : GenericRepository<Series>, ISeriesRepository
     public async Task<IEnumerable<Series>> GetByAuthorIdAsync(Guid authorId)
     {
         return await _context.Series
+            .AsNoTracking()
             .Include(s => s.Author)
             .Where(s => s.AuthorId == authorId)
             .OrderByDescending(s => s.CreatedAt)
@@ -22,6 +23,7 @@ public class SeriesRepository : GenericRepository<Series>, ISeriesRepository
     public async Task<Series?> GetWithRankingsAsync(Guid seriesId)
     {
         return await _context.Series
+            .AsNoTracking()
             .Include(s => s.Author)
             .Include(s => s.Rankings)
             .FirstOrDefaultAsync(s => s.Id == seriesId);
@@ -30,6 +32,7 @@ public class SeriesRepository : GenericRepository<Series>, ISeriesRepository
     public async Task<IEnumerable<Series>> GetAllWithRankingsAndAuthorAsync()
     {
         return await _context.Series
+            .AsNoTracking()
             .Include(s => s.Author)
             .Include(s => s.Rankings)
             .ToListAsync();
@@ -38,6 +41,7 @@ public class SeriesRepository : GenericRepository<Series>, ISeriesRepository
     public async Task<IEnumerable<Series>> GetPendingSeriesAsync()
     {
         return await _context.Series
+            .AsNoTracking()
             .Include(s => s.Author)
             .Where(s => s.Status == SeriesStatus.Draft)
             .OrderByDescending(s => s.CreatedAt)

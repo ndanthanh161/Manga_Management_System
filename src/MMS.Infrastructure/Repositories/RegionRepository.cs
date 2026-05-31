@@ -12,6 +12,7 @@ public class RegionRepository : GenericRepository<Region>, IRegionRepository
     public async Task<IEnumerable<Region>> GetByPageIdAsync(Guid pageId)
     {
         return await _context.Regions
+            .AsNoTracking()
             .Include(r => r.Tasks)
             .Where(r => r.PageId == pageId)
             .ToListAsync();

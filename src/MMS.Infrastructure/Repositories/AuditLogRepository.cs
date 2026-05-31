@@ -19,7 +19,7 @@ public class AuditLogRepository : IAuditLogRepository
         Guid? actorUserId = null, DateTime? from = null, DateTime? to = null,
         int page = 1, int pageSize = 20)
     {
-        var query = _context.AuditLogs.AsQueryable();
+        var query = _context.AuditLogs.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrEmpty(entityName))
             query = query.Where(a => a.EntityName == entityName);

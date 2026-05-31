@@ -13,6 +13,7 @@ public class AnnotationRepository : GenericRepository<Annotation>, IAnnotationRe
     public async Task<IEnumerable<Annotation>> GetByPageIdAsync(Guid pageId)
     {
         return await _context.Annotations
+            .AsNoTracking()
             .Include(a => a.User)
             .Include(a => a.ResolvedByUser)
             .Include(a => a.ClosedByUser)

@@ -14,6 +14,7 @@ public class ManuscriptPageRefRepository : GenericRepository<ManuscriptPageRef>,
     public async Task<List<ManuscriptPageRef>> GetByManuscriptAsync(Guid manuscriptId)
     {
         return await _dbSet
+            .AsNoTracking()
             .Include(mpr => mpr.Page)
             .Where(mpr => mpr.ManuscriptId == manuscriptId)
             .ToListAsync();
