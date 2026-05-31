@@ -31,4 +31,16 @@ public class SeriesMutations
         return true;
     }
 
+    [Authorize(Policy = PolicyNames.IsBoardMember)]
+    public async Task<R.Result<SeriesResponse>> VoteSeries(
+        [Service] ISeriesService seriesService,
+        Guid seriesId,
+        VoteType vote,
+        Guid? proposedTantouId,
+        string? comment,
+        ClaimsPrincipal claimsPrincipal)
+    {
+        var boardMemberId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
+        return await seriesService.VoteSeriesAsync(seriesId, boardMemberId, vote, proposedTantouId, comment);
+    }
 }

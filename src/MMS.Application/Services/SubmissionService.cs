@@ -113,9 +113,13 @@ public class SubmissionService : ISubmissionService
         return Result<SubmissionResponse>.Success(sub.Adapt<SubmissionResponse>());
     }
 
-    public async Task<Result<IEnumerable<SubmissionResponse>>> GetByMangakaAsync(Guid mangakaId)
+    public async Task<Result<IEnumerable<SubmissionResponse>>> GetByMangakaAsync(Guid mangakaId, Guid? seriesId = null)
     {
         var list = await _uow.Submissions.GetByMangakaIdAsync(mangakaId);
+        if (seriesId.HasValue)
+        {
+            list = list.Where(s => s.SeriesId == seriesId.Value);
+        }
         return Result<IEnumerable<SubmissionResponse>>.Success(list.Adapt<IEnumerable<SubmissionResponse>>());
     }
 
@@ -231,7 +235,8 @@ public class SubmissionService : ISubmissionService
             }
             else if (series.TantouEditorId == null || series.TantouEditorId == Guid.Empty)
             {
-                return Result<SubmissionResponse>.Failure("NO_TANTOU_ASSIGNED", "Bộ truyện chưa được gán Biên tập viên phụ trách (Tantou). Vui lòng liên hệ Admin.");
+                initialStatus = WorkflowStatus.ForwardedToBoard;
+                transitionComment = "Gửi bản thảo lên Hội đồng Biên tập do chưa có Biên tập viên phụ trách (Tantou)";
             }
 
             // Create submission
@@ -489,7 +494,7 @@ public class SubmissionService : ISubmissionService
 
             if (decision == WorkflowStatus.Approved)
             {
-                var series = await _uow.Series.GetByIdAsync(submission.SeriesId);
+                var series = submission.Series;
                 if (series != null)
                 {
                     if (series.Status == SeriesStatus.Draft)

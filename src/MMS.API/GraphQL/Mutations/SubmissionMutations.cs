@@ -119,7 +119,7 @@ public class SubmissionMutations
         var result = await submissionService.FinalizeBoardDecisionAsync(submissionId, decision, comment, userId, assignTantouId);
         if (!result.Succeeded)
         {
-            throw new Exception(result.Message ?? "Hội đồng đưa ra quyết định cuối thất bại.");
+            throw new GraphQLException(result.Message ?? "Hội đồng đưa ra quyết định cuối thất bại.");
         }
         return result.Data!;
     }

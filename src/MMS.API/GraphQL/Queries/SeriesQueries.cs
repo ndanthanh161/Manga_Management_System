@@ -20,6 +20,14 @@ public class SeriesQueries
         return await seriesService.GetByMangakaAsync(mangakaId);
     }
 
+    /// <summary>Lấy danh sách các series đang chờ duyệt</summary>
+    [Authorize(Policy = PolicyNames.IsBoardMember)]
+    public async Task<IEnumerable<SeriesResponse>> GetPendingSeries(
+        [Service] ISeriesService seriesService)
+    {
+        return await seriesService.GetPendingSeriesAsync();
+    }
+
     /// <summary>Xem chi tiết một series</summary>
     public async Task<SeriesResponse?> GetSeriesById(
         [Service] ISeriesService seriesService,

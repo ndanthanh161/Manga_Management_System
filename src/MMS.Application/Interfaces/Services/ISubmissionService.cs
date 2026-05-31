@@ -8,7 +8,7 @@ public interface ISubmissionService
 {
     Task<Result<SubmissionResponse>> CreateAsync(Guid? mangakaId, CreateSubmissionRequest request);
     Task<Result<SubmissionResponse>> GetByIdAsync(Guid id);
-    Task<Result<IEnumerable<SubmissionResponse>>> GetByMangakaAsync(Guid mangakaId);
+    Task<Result<IEnumerable<SubmissionResponse>>> GetByMangakaAsync(Guid mangakaId, Guid? seriesId = null);
     Task<Result<SubmissionResponse>> VoteAsync(Guid submissionId, Guid editorId, bool approve, string note);
 
 

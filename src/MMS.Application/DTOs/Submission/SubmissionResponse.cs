@@ -10,6 +10,8 @@ public record SubmissionResponse(
     string Status,
     Guid SeriesId,
     string SeriesTitle,
+    string? SeriesDescription,
+    string? SeriesCoverImageUrl,
     Guid? MangakaId,
     string MangakaName,
     Guid? AssignedTantouId,

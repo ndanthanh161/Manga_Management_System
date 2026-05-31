@@ -5,5 +5,6 @@ public enum SeriesStatus
     Ongoing,
     Completed,
     Hiatus,
-    Draft
+    Draft,
+    Abandoned
 }

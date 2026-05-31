@@ -9,6 +9,8 @@ public interface ISeriesService
     Task<Result<SeriesResponse>> CreateAsync(Guid? mangakaId, CreateSeriesRequest request, CancellationToken ct = default);
     Task<SeriesResponse?> GetByIdAsync(Guid id);
     Task<IEnumerable<SeriesResponse>> GetByMangakaAsync(Guid mangakaId);
+    Task<IEnumerable<SeriesResponse>> GetPendingSeriesAsync();
+    Task<Result<SeriesResponse>> VoteSeriesAsync(Guid seriesId, Guid boardMemberId, VoteType vote, Guid? proposedTantouId, string? comment);
 
     Task<Result<SeriesResponse>> UpdateAsync(Guid id, Guid mangakaId, UpdateSeriesRequest request, CancellationToken ct = default);
     Task<Result<bool>> DeleteAsync(Guid id, Guid mangakaId, CancellationToken ct = default);
