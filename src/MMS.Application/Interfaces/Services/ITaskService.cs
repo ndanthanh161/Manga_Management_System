@@ -9,4 +9,6 @@ public interface ITaskService
     Task<IEnumerable<TaskResponse>> GetByAssignedUserAsync(Guid userId);
     Task<TaskResponse> UpdateStatusAsync(Guid taskId, Guid requesterId, UpdateTaskStatusRequest request);
     Task<IEnumerable<MonthlyIncomeStats>> GetMonthlyIncomeStatsAsync(Guid assistantId);
+    Task<IEnumerable<TaskResponse>> GetByPageAsync(Guid pageId);
+    Task<IEnumerable<TaskResponse>> GetByMangakaAsync(Guid mangakaId);
 }

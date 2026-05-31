@@ -182,4 +182,16 @@ public class TaskService : ITaskService
 
         return statsList;
     }
+
+    public async Task<IEnumerable<TaskResponse>> GetByPageAsync(Guid pageId)
+    {
+        var tasks = await _uow.Tasks.GetByPageIdAsync(pageId);
+        return tasks.Adapt<IEnumerable<TaskResponse>>();
+    }
+
+    public async Task<IEnumerable<TaskResponse>> GetByMangakaAsync(Guid mangakaId)
+    {
+        var tasks = await _uow.Tasks.GetByMangakaIdAsync(mangakaId);
+        return tasks.Adapt<IEnumerable<TaskResponse>>();
+    }
 }

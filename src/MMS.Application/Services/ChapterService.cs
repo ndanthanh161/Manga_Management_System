@@ -33,4 +33,10 @@ public class ChapterService : IChapterService
         var list = await _uow.Chapters.FindAsync(c => c.SeriesId == seriesId);
         return list.OrderBy(c => c.ChapterNumber).Adapt<IEnumerable<ChapterResponse>>();
     }
+
+    public async Task<ChapterResponse?> GetByIdAsync(Guid id)
+    {
+        var chapter = await _uow.Chapters.GetByIdAsync(id);
+        return chapter?.Adapt<ChapterResponse>();
+    }
 }

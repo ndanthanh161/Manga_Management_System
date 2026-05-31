@@ -38,4 +38,23 @@ public class TaskQueries
         var userId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
         return await taskService.GetMonthlyIncomeStatsAsync(userId);
     }
+
+    /// <summary>Xem các task được giao trên một trang truyện</summary>
+    [Authorize]
+    public async Task<IEnumerable<TaskResponse>> GetTasksByPage(
+        [Service] ITaskService taskService,
+        Guid pageId)
+    {
+        return await taskService.GetByPageAsync(pageId);
+    }
+
+    /// <summary>Xem tất cả các task thuộc về các Trợ lý dưới quyền của Mangaka</summary>
+    [Authorize(Policy = PolicyNames.IsMangaka)]
+    public async Task<IEnumerable<TaskResponse>> GetTasksByMangaka(
+        [Service] ITaskService taskService,
+        ClaimsPrincipal claimsPrincipal)
+    {
+        var mangakaId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
+        return await taskService.GetByMangakaAsync(mangakaId);
+    }
 }

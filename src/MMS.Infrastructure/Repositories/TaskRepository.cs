@@ -37,4 +37,26 @@ public class TaskRepository : GenericRepository<WorkTask>, ITaskRepository
             .Include(t => t.AssignedUser)
             .FirstOrDefaultAsync(t => t.Id == taskId);
     }
+
+    public async Task<IEnumerable<WorkTask>> GetByPageIdAsync(Guid pageId)
+    {
+        return await _context.Tasks
+            .AsNoTracking()
+            .Include(t => t.Region).ThenInclude(r => r != null ? r.Page : null)
+            .Include(t => t.AssignedUser)
+            .Where(t => t.Region != null && t.Region.PageId == pageId)
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<WorkTask>> GetByMangakaIdAsync(Guid mangakaId)
+    {
+        return await _context.Tasks
+            .AsNoTracking()
+            .Include(t => t.Region).ThenInclude(r => r != null ? r.Page : null)
+            .Include(t => t.AssignedUser)
+            .Where(t => t.AssignedUser != null && t.AssignedUser.MangakaId == mangakaId)
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync();
+    }
 }

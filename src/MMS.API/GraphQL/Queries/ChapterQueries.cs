@@ -14,4 +14,12 @@ public class ChapterQueries
     {
         return await chapterService.GetBySeriesAsync(seriesId);
     }
+
+    [Authorize]
+    public async Task<ChapterResponse?> GetChapterById(
+        [Service] IChapterService chapterService,
+        Guid id)
+    {
+        return await chapterService.GetByIdAsync(id);
+    }
 }
