@@ -471,6 +471,85 @@ public class SubmissionService : ISubmissionService
         }
     }
 
+    public async Task<Result<SubmissionResponse>> ApproveSubmissionAsync(Guid submissionId, Guid tantouId, string comment)
+    {
+        try
+        {
+            var submission = await _uow.Submissions.GetWithDetailsAsync(submissionId);
+            if (submission == null)
+            {
+                return Result<SubmissionResponse>.NotFound("SUBMISSION_NOT_FOUND", "Không tìm thấy bản nộp.");
+            }
+
+            if (submission.AssignedTantouId != tantouId)
+            {
+                return Result<SubmissionResponse>.Forbidden("FORBIDDEN", "Bạn không phải Biên tập viên phụ trách (Tantou) được gán cho bản nộp này.");
+            }
+
+            var series = submission.Series;
+            if (series == null)
+            {
+                return Result<SubmissionResponse>.Failure("SERIES_NOT_FOUND", "Không tìm thấy bộ truyện.");
+            }
+
+            if (series.Status == SeriesStatus.Draft)
+            {
+                return Result<SubmissionResponse>.Failure("INVALID_SERIES_STATUS", "Không thể duyệt trực tiếp bản thảo của bộ truyện mới (chưa được duyệt Series). Bản thảo này phải được trình lên Hội đồng xem xét.");
+            }
+
+            SubmissionStateMachine.ValidateTransition(submission.Status, WorkflowStatus.Approved);
+
+            var oldStatus = submission.Status;
+            submission.Status = WorkflowStatus.Approved;
+            submission.ResolvedAt = DateTime.UtcNow;
+
+            // Update manuscripts status to Published
+            foreach (var ms in submission.Manuscripts)
+            {
+                ms.Status = ManuscriptStatus.Published;
+                _uow.Manuscripts.Update(ms);
+            }
+
+            var transition = new SubmissionTransition
+            {
+                Id = Guid.NewGuid(),
+                SubmissionId = submissionId,
+                FromStatus = oldStatus,
+                ToStatus = WorkflowStatus.Approved,
+                ActorUserId = tantouId,
+                Comment = string.IsNullOrWhiteSpace(comment) ? "Tantou duyệt xuất bản bản thảo" : comment,
+                OccurredAt = DateTime.UtcNow
+            };
+
+            _uow.Submissions.Update(submission);
+            await _uow.SubmissionTransitions.AddAsync(transition);
+            await _uow.SaveChangesAsync();
+
+            await _eventPublisher.PublishAsync(new SubmissionStatusChangedEvent(
+                submission.Id,
+                submission.SeriesId,
+                oldStatus,
+                WorkflowStatus.Approved,
+                tantouId,
+                submission.MangakaId ?? Guid.Empty,
+                string.IsNullOrWhiteSpace(comment) ? "Tantou duyệt xuất bản bản thảo" : comment
+            ));
+
+            if (submission.MangakaId.HasValue && submission.MangakaId.Value != Guid.Empty)
+            {
+                string msg = $"Chúc mừng! Bản thảo '{submission.Title}' đã được Tantou duyệt xuất bản.";
+                await _notificationClient.SendEmailAsync(submission.MangakaId.Value.ToString(), "Kết quả duyệt bản thảo", msg);
+            }
+
+            var updated = await _uow.Submissions.GetWithDetailsAsync(submissionId);
+            return Result<SubmissionResponse>.Success(updated!.Adapt<SubmissionResponse>());
+        }
+        catch (Exception ex)
+        {
+            return Result<SubmissionResponse>.Failure("APPROVE_FAILED", ex.Message);
+        }
+    }
+
     public async Task<Result<SubmissionResponse>> FinalizeBoardDecisionAsync(Guid submissionId, WorkflowStatus decision, string comment, Guid actorId, Guid? assignTantouId = null)
     {
         try

@@ -17,6 +17,7 @@ public interface ISubmissionService
     Task<Result<SubmissionResponse>> AcceptForReviewAsync(Guid submissionId, Guid tantouId);
     Task<Result<SubmissionResponse>> ForwardToBoardAsync(Guid submissionId, Guid tantouId, string comment);
     Task<Result<SubmissionResponse>> ReturnForRevisionAsync(Guid submissionId, Guid tantouId, string comment);
+    Task<Result<SubmissionResponse>> ApproveSubmissionAsync(Guid submissionId, Guid tantouId, string comment);
     Task<Result<SubmissionResponse>> FinalizeBoardDecisionAsync(Guid submissionId, WorkflowStatus decision, string comment, Guid actorId, Guid? assignTantouId = null);
     Task<Result<IEnumerable<SubmissionResponse>>> GetInboxAsync(Guid userId, string role, WorkflowStatus? filter);
     Task<Result<IEnumerable<SubmissionTransitionResponse>>> GetWorkflowHistoryAsync(Guid submissionId);

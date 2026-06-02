@@ -13,7 +13,7 @@ public static class SubmissionStateMachine
             WorkflowStatus.Submitted, new HashSet<WorkflowStatus> { WorkflowStatus.UnderTantouReview }
         },
         {
-            WorkflowStatus.UnderTantouReview, new HashSet<WorkflowStatus> { WorkflowStatus.ReturnedForRevision, WorkflowStatus.ForwardedToBoard }
+            WorkflowStatus.UnderTantouReview, new HashSet<WorkflowStatus> { WorkflowStatus.ReturnedForRevision, WorkflowStatus.ForwardedToBoard, WorkflowStatus.Approved }
         },
         {
             WorkflowStatus.ReturnedForRevision, new HashSet<WorkflowStatus> { WorkflowStatus.Submitted, WorkflowStatus.Draft }

@@ -47,14 +47,10 @@ public class SubmissionRepository : GenericRepository<Submission>, ISubmissionRe
 
         if (role.Equals("Tantou", StringComparison.OrdinalIgnoreCase))
         {
-            query = query.Where(s => s.AssignedTantouId == userId);
+            query = query.Where(s => s.AssignedTantouId == userId || s.Series.TantouEditorId == userId);
             if (filter.HasValue)
             {
                 query = query.Where(s => s.Status == filter.Value);
-            }
-            else
-            {
-                query = query.Where(s => s.Status == WorkflowStatus.Submitted || s.Status == WorkflowStatus.UnderTantouReview);
             }
         }
         else if (role.Equals("Editorial Board", StringComparison.OrdinalIgnoreCase))
@@ -62,10 +58,6 @@ public class SubmissionRepository : GenericRepository<Submission>, ISubmissionRe
             if (filter.HasValue)
             {
                 query = query.Where(s => s.Status == filter.Value);
-            }
-            else
-            {
-                query = query.Where(s => s.Status == WorkflowStatus.ForwardedToBoard || s.Status == WorkflowStatus.InBoardVoting);
             }
         }
         else if (role.Equals("Mangaka", StringComparison.OrdinalIgnoreCase))
