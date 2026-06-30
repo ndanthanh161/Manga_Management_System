@@ -14,10 +14,11 @@ public class SubmissionQueries
     [Authorize(Policy = PolicyNames.IsMangaka)]
     public async Task<IEnumerable<SubmissionResponse>> GetMySubmissions(
         [Service] ISubmissionService submissionService,
-        ClaimsPrincipal claimsPrincipal)
+        ClaimsPrincipal claimsPrincipal,
+        [GraphQLType(typeof(UuidType))] Guid? seriesId = null)
     {
         var mangakaId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
-        var result = await submissionService.GetByMangakaAsync(mangakaId);
+        var result = await submissionService.GetByMangakaAsync(mangakaId, seriesId);
         return result.Succeeded ? result.Data! : Enumerable.Empty<SubmissionResponse>();
     }
 

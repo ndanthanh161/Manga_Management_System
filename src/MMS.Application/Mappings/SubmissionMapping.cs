@@ -13,6 +13,9 @@ public class SubmissionMapping : IRegister
         // Submission -> SubmissionResponse
         config.NewConfig<Submission, SubmissionResponse>()
             .Map(dest => dest.SeriesTitle, src => src.Series != null ? src.Series.Title : string.Empty)
+            .Map(dest => dest.SeriesDescription, src => src.Series != null ? src.Series.Description : null)
+            .Map(dest => dest.SeriesCoverImageUrl, src => src.Series != null ? src.Series.CoverImageUrl : null)
+            .Map(dest => dest.SeriesStatus, src => src.Series != null ? src.Series.Status.ToString() : null)
             .Map(dest => dest.MangakaName, src => src.Mangaka != null ? src.Mangaka.Username : string.Empty)
             .Map(dest => dest.AssignedTantouName, src => src.AssignedTantou != null ? src.AssignedTantou.Username : string.Empty)
             .Map(dest => dest.Status, src => src.Status.ToString())

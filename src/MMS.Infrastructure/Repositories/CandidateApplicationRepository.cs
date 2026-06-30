@@ -15,7 +15,7 @@ public class CandidateApplicationRepository : GenericRepository<CandidateApplica
     public async Task<CandidateApplication?> GetWithDetailsAsync(Guid id)
     {
         return await _context.CandidateApplications
-            .AsNoTracking()
+            .AsNoTrackingWithIdentityResolution()
             .Include(a => a.User)
             .Include(a => a.Series)
             .Include(a => a.ApprovedByUser)

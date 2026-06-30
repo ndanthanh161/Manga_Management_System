@@ -162,6 +162,57 @@ public class SeriesService : ISeriesService
         return list.Adapt<IEnumerable<SeriesResponse>>();
     }
 
+    public async Task<IEnumerable<SeriesResponse>> GetPendingSeriesAsync()
+    {
+        var list = await _uow.Series.GetPendingSeriesAsync();
+        return list.Adapt<IEnumerable<SeriesResponse>>();
+    }
+
+    public async Task<Result<SeriesResponse>> VoteSeriesAsync(Guid seriesId, Guid boardMemberId, VoteType vote, Guid? proposedTantouId, string? comment)
+    {
+        var boardMember = await _uow.Users.GetUserWithRolesAsync(boardMemberId);
+        if (boardMember == null || !boardMember.Roles.Any(r => r.Name == "Editorial Board"))
+            return Result<SeriesResponse>.Failure("FORBIDDEN", "Chỉ thành viên Editorial Board mới có thể bỏ phiếu.", 403);
+
+        var series = await _uow.Series.GetByIdAsync(seriesId);
+        if (series == null)
+            return Result<SeriesResponse>.NotFound("NOT_FOUND", "Series không tồn tại.");
+
+        if (series.Status != SeriesStatus.Draft)
+            return Result<SeriesResponse>.Failure("ALREADY_APPROVED", "Series này đã được phê duyệt hoặc không ở trạng thái chờ duyệt.");
+
+        var newVote = new SeriesVote
+        {
+            Id = Guid.NewGuid(),
+            SeriesId = seriesId,
+            BoardMemberId = boardMemberId,
+            VoteType = vote,
+            ProposedTantouId = (vote == VoteType.Approve) ? proposedTantouId : null,
+            Comment = comment,
+            CreatedAt = DateTime.UtcNow
+        };
+        await _uow.SeriesVotes.AddAsync(newVote);
+
+        if (vote == VoteType.Approve)
+        {
+            if (proposedTantouId == null) return Result<SeriesResponse>.Failure("EDITOR_REQUIRED", "Vui lòng chọn Tantou Editor.");
+            
+            series.Status = SeriesStatus.Ongoing;
+            series.TantouEditorId = proposedTantouId.Value;
+            series.UpdatedAt = DateTime.UtcNow;
+            _uow.Series.Update(series);
+        }
+        else if (vote == VoteType.Reject)
+        {
+            // Just keep it as Draft so the Mangaka can modify and submit again
+            series.UpdatedAt = DateTime.UtcNow;
+            _uow.Series.Update(series);
+        }
+
+        await _uow.SaveChangesAsync();
+        return Result<SeriesResponse>.Success(series.Adapt<SeriesResponse>(), "Đã ghi nhận phiếu bầu và cập nhật trạng thái Series.");
+    }
+
 
 
     public async Task<IEnumerable<SeriesRankingResponse>> GetRankingsAsync(Guid seriesId)

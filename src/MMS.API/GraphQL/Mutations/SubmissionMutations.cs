@@ -106,6 +106,22 @@ public class SubmissionMutations
         return result.Data!;
     }
 
+    [Authorize(Policy = PolicyNames.CanReviewSubmission)]
+    public async Task<SubmissionResponse> ApproveSubmission(
+        [Service] ISubmissionService submissionService,
+        ClaimsPrincipal claimsPrincipal,
+        Guid submissionId,
+        string comment)
+    {
+        var userId = GraphQLHelper.GetCurrentUserId(claimsPrincipal);
+        var result = await submissionService.ApproveSubmissionAsync(submissionId, userId, comment);
+        if (!result.Succeeded)
+        {
+            throw new Exception(result.Message ?? "Phê duyệt bản thảo thất bại.");
+        }
+        return result.Data!;
+    }
+
     [Authorize(Policy = PolicyNames.CanVoteInSession)]
     public async Task<SubmissionResponse> FinalizeBoardDecision(
         [Service] ISubmissionService submissionService,
@@ -119,7 +135,7 @@ public class SubmissionMutations
         var result = await submissionService.FinalizeBoardDecisionAsync(submissionId, decision, comment, userId, assignTantouId);
         if (!result.Succeeded)
         {
-            throw new Exception(result.Message ?? "Hội đồng đưa ra quyết định cuối thất bại.");
+            throw new GraphQLException(result.Message ?? "Hội đồng đưa ra quyết định cuối thất bại.");
         }
         return result.Data!;
     }
