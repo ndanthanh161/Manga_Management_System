@@ -25,7 +25,6 @@ public class SubmissionRepository : GenericRepository<Submission>, ISubmissionRe
     public async Task<Submission?> GetWithDetailsAsync(Guid submissionId)
     {
         return await _context.Submissions
-            .AsNoTracking()
             .Include(s => s.Series)
             .Include(s => s.Mangaka)
             .Include(s => s.AssignedTantou)
