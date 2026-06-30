@@ -26,6 +26,16 @@ namespace MMS.Infrastructure.gRPC
             ValidateToken(context);
             return await continuation(request, context);
         }
+
+        public override async Task ServerStreamingServerHandler<TRequest, TResponse>(
+            TRequest request,
+            IServerStreamWriter<TResponse> responseStream,
+            ServerCallContext context,
+            ServerStreamingServerMethod<TRequest, TResponse> continuation)
+        {
+            ValidateToken(context);
+            await continuation(request, responseStream, context);
+        }
         private void ValidateToken(ServerCallContext context)
         {
             var authHeader = context.RequestHeaders

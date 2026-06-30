@@ -1,11 +1,16 @@
 using Microsoft.EntityFrameworkCore;
 using MMS.Infrastructure.Data;
+using MMS.Infrastructure.gRPC;
 using MMS.NotificationService.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Đăng ký gRPC server
-builder.Services.AddGrpc();
+// Đăng ký gRPC server với server-side auth interceptor
+builder.Services.AddSingleton<GrpcAuthServerInterceptor>();
+builder.Services.AddGrpc(options =>
+{
+    options.Interceptors.Add<GrpcAuthServerInterceptor>();
+});
 
 // Database (cùng connection string, read-only để lookup user email)
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
