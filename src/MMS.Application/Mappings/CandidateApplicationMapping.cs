@@ -10,11 +10,16 @@ public class CandidateApplicationMapping : IRegister
     {
         config.NewConfig<Asset, CandidateApplicationAssetDto>();
 
+        config.NewConfig<ApplicationVote, CandidateApplicationVoteDto>()
+            .Map(dest => dest.BoardMemberName, src => src.BoardMember != null ? src.BoardMember.Username : string.Empty)
+            .Map(dest => dest.VoteType, src => src.VoteType.ToString());
+
         config.NewConfig<CandidateApplication, CandidateApplicationDto>()
             .Map(dest => dest.Email, src => src.User != null ? src.User.Email : string.Empty)
             .Map(dest => dest.SeriesTitle, src => src.Series != null ? src.Series.Title : string.Empty)
             .Map(dest => dest.Status, src => src.Status.ToString())
-            .Map(dest => dest.Assets, src => src.Assets);
+            .Map(dest => dest.Assets, src => src.Assets)
+            .Map(dest => dest.Votes, src => src.ApplicationVotes);
 
         // SubmitApplicationRequest -> User
         config.NewConfig<SubmitApplicationRequest, User>()

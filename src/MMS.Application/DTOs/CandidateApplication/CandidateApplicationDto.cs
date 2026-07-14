@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace MMS.Application.DTOs.CandidateApplication;
 
 public record CandidateApplicationDto
@@ -11,4 +13,5 @@ public record CandidateApplicationDto
     public string? ReviewNote { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime? ReviewedAt { get; init; }
+    public List<CandidateApplicationVoteDto> Votes { get; init; } = new();
 }

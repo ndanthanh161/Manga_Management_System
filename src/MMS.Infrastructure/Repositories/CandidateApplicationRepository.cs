@@ -15,12 +15,12 @@ public class CandidateApplicationRepository : GenericRepository<CandidateApplica
     public async Task<CandidateApplication?> GetWithDetailsAsync(Guid id)
     {
         return await _context.CandidateApplications
-            .AsNoTrackingWithIdentityResolution()
             .Include(a => a.User)
             .Include(a => a.Series)
             .Include(a => a.ApprovedByUser)
             .Include(a => a.Assets)
             .Include(a => a.ApplicationVotes)
+                .ThenInclude(v => v.BoardMember)
             .FirstOrDefaultAsync(a => a.Id == id);
     }
 
@@ -31,6 +31,8 @@ public class CandidateApplicationRepository : GenericRepository<CandidateApplica
             .Include(a => a.User)
             .Include(a => a.Series)
             .Include(a => a.Assets)
+            .Include(a => a.ApplicationVotes)
+                .ThenInclude(v => v.BoardMember)
             .Where(a => a.Status == CandidateApplicationStatus.Pending)
             .OrderByDescending(a => a.CreatedAt)
             .ToListAsync();
