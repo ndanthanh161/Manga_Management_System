@@ -257,9 +257,40 @@ public class CandidateApplicationService : ICandidateApplicationService
         // 6. Chuyển các Asset của candidate thành của Manuscript này
         if (application.Assets != null && application.Assets.Count > 0)
         {
-            foreach (var asset in application.Assets)
+            var orderedAssets = application.Assets
+                .OrderBy(asset => asset.UploadedAt)
+                .ThenBy(asset => asset.Id)
+                .ToList();
+
+            for (var index = 0; index < orderedAssets.Count; index++)
             {
+                var asset = orderedAssets[index];
                 asset.ManuscriptId = manuscript.Id;
+
+                var page = new Page
+                {
+                    Id = Guid.NewGuid(),
+                    PageNumber = index + 1,
+                    ImageUrl = asset.FileUrl,
+                    CloudinaryPublicId = asset.PublicId,
+                    Width = 0,
+                    Height = 0,
+                    FileSizeBytes = asset.Size,
+                    Version = 1,
+                    IsCurrentVersion = true,
+                    ChapterId = chapter.Id,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _unitOfWork.Pages.AddAsync(page);
+
+                var pageRef = new ManuscriptPageRef
+                {
+                    Id = Guid.NewGuid(),
+                    ManuscriptId = manuscript.Id,
+                    PageId = page.Id,
+                    PageVersion = page.Version
+                };
+                await _unitOfWork.ManuscriptPageRefs.AddAsync(pageRef);
             }
         }
 
