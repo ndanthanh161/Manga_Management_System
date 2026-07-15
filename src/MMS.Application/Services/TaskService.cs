@@ -49,7 +49,7 @@ public class TaskService : ITaskService
 
     public async Task<TaskResponse> UpdateStatusAsync(Guid taskId, Guid requesterId, UpdateTaskStatusRequest request)
     {
-        var task = await _uow.Tasks.GetWithRegionAsync(taskId)
+        var task = await _uow.Tasks.GetByIdAsync(taskId)
             ?? throw new KeyNotFoundException($"Task {taskId} not found.");
 
         if (!task.AssignedUserId.HasValue)
@@ -57,7 +57,7 @@ public class TaskService : ITaskService
             throw new InvalidOperationException("Công việc này chưa được giao cho bất kỳ ai.");
         }
 
-        var assistant = await _uow.Users.GetUserWithRolesAsync(task.AssignedUserId.Value)
+        var assistant = await _uow.Users.GetByIdAsync(task.AssignedUserId.Value)
             ?? throw new KeyNotFoundException("Trợ lý được giao việc không tồn tại.");
 
         bool isAssignedAssistant = task.AssignedUserId == requesterId;
@@ -101,7 +101,6 @@ public class TaskService : ITaskService
         }
 
         task.Status = request.NewStatus;
-        _uow.Tasks.Update(task);
         await _uow.SaveChangesAsync();
 
         // Reload để lấy đủ thông tin Region và Page cho mapping
