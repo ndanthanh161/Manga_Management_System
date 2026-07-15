@@ -233,9 +233,9 @@ public class CandidateApplicationService : ICandidateApplicationService
         var chapter = new Chapter
         {
             Id = Guid.NewGuid(),
-            Title = "Chương 1: Bản thảo ứng tuyển",
+            Title = $"Chương 1: {series.Title}",
             ChapterNumber = 1,
-            IsPublished = false,
+            IsPublished = true,
             SeriesId = series.Id,
             CreatedAt = DateTime.UtcNow
         };
@@ -245,8 +245,8 @@ public class CandidateApplicationService : ICandidateApplicationService
         var manuscript = new Manuscript
         {
             Id = Guid.NewGuid(),
-            Name = "Bản thảo ứng tuyển",
-            Status = ManuscriptStatus.Draft,
+            Name = $"{series.Title} - Bản thảo ứng tuyển",
+            Status = ManuscriptStatus.Published,
             Version = 1,
             IsCurrentVersion = true,
             ChapterId = chapter.Id,

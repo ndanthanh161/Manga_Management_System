@@ -133,10 +133,23 @@ public class SubmissionService : ISubmissionService
                 return Result<SubmissionResponse>.NotFound("SUBMISSION_NOT_FOUND", $"Bản nộp {submissionId} không tồn tại.");
             }
 
-            var editor = await _uow.Users.GetByIdAsync(editorId);
-            if (editor == null)
+            var editor = await _uow.Users.GetUserWithRolesAsync(editorId);
+            if (editor == null || !editor.IsActive || !editor.Roles.Any(r => r.Name == "Editorial Board"))
             {
-                return Result<SubmissionResponse>.NotFound("USER_NOT_FOUND", $"Không tìm thấy biên tập viên {editorId}.");
+                return Result<SubmissionResponse>.Forbidden("FORBIDDEN", "Chỉ thành viên Editorial Board đang hoạt động mới có thể bỏ phiếu.");
+            }
+
+            if (submission.Status != WorkflowStatus.ForwardedToBoard &&
+                submission.Status != WorkflowStatus.InBoardVoting)
+            {
+                return Result<SubmissionResponse>.Failure("INVALID_STATUS", "Bản nộp không ở trạng thái chờ Hội đồng bỏ phiếu.");
+            }
+
+            var existingVotes = await _uow.BoardVotes.FindAsync(v =>
+                v.SubmissionId == submissionId && v.BoardMemberId == editorId);
+            if (existingVotes.Any())
+            {
+                return Result<SubmissionResponse>.Failure("ALREADY_VOTED", "Bạn đã bỏ phiếu cho bản nộp này rồi.");
             }
 
             if (submission.Status == WorkflowStatus.ForwardedToBoard)
@@ -170,19 +183,29 @@ public class SubmissionService : ISubmissionService
             await _uow.BoardVotes.AddAsync(vote);
             await _uow.SaveChangesAsync();
 
-            var votesList = await _uow.BoardVotes.FindAsync(v => v.SubmissionId == submissionId);
+            var activeBoardMembers = (await _uow.Users.FindAsync(u =>
+                u.IsActive && u.Roles.Any(r => r.Name == "Editorial Board"))).ToList();
+            var activeBoardMemberIds = activeBoardMembers.Select(u => u.Id).ToHashSet();
+            var votesList = (await _uow.BoardVotes.FindAsync(v => v.SubmissionId == submissionId))
+                .Where(v => activeBoardMemberIds.Contains(v.BoardMemberId))
+                .GroupBy(v => v.BoardMemberId)
+                .Select(g => g.OrderByDescending(v => v.CreatedAt).First())
+                .ToList();
             int approveCount = votesList.Count(v => v.VoteType == VoteType.Approve);
             int rejectCount = votesList.Count(v => v.VoteType == VoteType.Reject);
+            int requiredVotes = activeBoardMembers.Count / 2 + 1;
 
             await _eventPublisher.PublishAsync(new BoardVoteCastEvent(
                 submissionId,
                 approveCount,
                 rejectCount,
-                votesList.Count()
+                votesList.Count
             ));
 
             var updated = await _uow.Submissions.GetWithDetailsAsync(submissionId);
-            return Result<SubmissionResponse>.Success(updated!.Adapt<SubmissionResponse>());
+            return Result<SubmissionResponse>.Success(
+                updated!.Adapt<SubmissionResponse>(),
+                $"Đã ghi nhận phiếu bầu. Approve: {approveCount}, Reject: {rejectCount}, cần {requiredVotes}/{activeBoardMembers.Count} phiếu để chốt quyết định.");
         }
         catch (Exception ex)
         {
@@ -565,6 +588,50 @@ public class SubmissionService : ISubmissionService
                 return Result<SubmissionResponse>.NotFound("SUBMISSION_NOT_FOUND", "Không tìm thấy bản nộp.");
             }
 
+            var actor = await _uow.Users.GetUserWithRolesAsync(actorId);
+            if (actor == null || !actor.IsActive || !actor.Roles.Any(r => r.Name == "Editorial Board"))
+            {
+                return Result<SubmissionResponse>.Forbidden("FORBIDDEN", "Chỉ thành viên Editorial Board đang hoạt động mới có thể chốt quyết định.");
+            }
+
+            var activeBoardMembers = (await _uow.Users.FindAsync(u =>
+                u.IsActive && u.Roles.Any(r => r.Name == "Editorial Board"))).ToList();
+            var activeBoardMemberIds = activeBoardMembers.Select(u => u.Id).ToHashSet();
+            var votes = (await _uow.BoardVotes.FindAsync(v => v.SubmissionId == submissionId))
+                .Where(v => activeBoardMemberIds.Contains(v.BoardMemberId))
+                .GroupBy(v => v.BoardMemberId)
+                .Select(g => g.OrderByDescending(v => v.CreatedAt).First())
+                .ToList();
+
+            int requiredVotes = activeBoardMembers.Count / 2 + 1;
+            int approveCount = votes.Count(v => v.VoteType == VoteType.Approve);
+            int rejectCount = votes.Count(v => v.VoteType == VoteType.Reject);
+
+            if (decision == WorkflowStatus.Approved && approveCount < requiredVotes)
+            {
+                return Result<SubmissionResponse>.Failure(
+                    "MAJORITY_NOT_REACHED",
+                    $"Chưa đủ đa số phiếu Approve: {approveCount}/{requiredVotes} (tổng {activeBoardMembers.Count} Editorial Board).",
+                    409);
+            }
+
+            if (decision == WorkflowStatus.Rejected && rejectCount < requiredVotes)
+            {
+                return Result<SubmissionResponse>.Failure(
+                    "MAJORITY_NOT_REACHED",
+                    $"Chưa đủ đa số phiếu Reject: {rejectCount}/{requiredVotes} (tổng {activeBoardMembers.Count} Editorial Board).",
+                    409);
+            }
+
+            if (decision == WorkflowStatus.Postponed &&
+                (votes.Count < activeBoardMembers.Count || approveCount >= requiredVotes || rejectCount >= requiredVotes))
+            {
+                return Result<SubmissionResponse>.Failure(
+                    "INVALID_POSTPONE",
+                    "Chỉ được hoãn khi tất cả Editorial Board đã bỏ phiếu nhưng không bên nào đạt đa số.",
+                    409);
+            }
+
             SubmissionStateMachine.ValidateTransition(submission.Status, decision);
 
             var oldStatus = submission.Status;
@@ -579,9 +646,16 @@ public class SubmissionService : ISubmissionService
                     if (series.Status == SeriesStatus.Draft)
                     {
                         if (assignTantouId == null || assignTantouId == Guid.Empty)
-                        {
                             return Result<SubmissionResponse>.Failure("TANTOU_REQUIRED", "Vui lòng chọn Biên tập viên phụ trách (Tantou) khi duyệt tác phẩm mới.");
+
+                        var tantou = await _uow.Users.GetUserWithRolesAsync(assignTantouId.Value);
+                        if (tantou == null || !tantou.IsActive || !tantou.Roles.Any(r => r.Name == "Tantou Editor"))
+                        {
+                            return Result<SubmissionResponse>.Failure(
+                                "INVALID_TANTOU",
+                                "Biên tập viên phụ trách không tồn tại hoặc không còn hoạt động.");
                         }
+
                         series.TantouEditorId = assignTantouId.Value;
                     }
                     else if (submission.AssignedTantouId.HasValue)
@@ -609,6 +683,16 @@ public class SubmissionService : ISubmissionService
                 {
                     ms.Status = ManuscriptStatus.Published;
                     _uow.Manuscripts.Update(ms);
+                }
+
+                foreach (var chapterId in submission.Manuscripts.Select(ms => ms.ChapterId).Distinct())
+                {
+                    var chapter = await _uow.Chapters.GetByIdAsync(chapterId);
+                    if (chapter != null)
+                    {
+                        chapter.IsPublished = true;
+                        _uow.Chapters.Update(chapter);
+                    }
                 }
             }
 

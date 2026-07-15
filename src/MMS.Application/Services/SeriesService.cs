@@ -171,8 +171,11 @@ public class SeriesService : ISeriesService
     public async Task<Result<SeriesResponse>> VoteSeriesAsync(Guid seriesId, Guid boardMemberId, VoteType vote, Guid? proposedTantouId, string? comment)
     {
         var boardMember = await _uow.Users.GetUserWithRolesAsync(boardMemberId);
-        if (boardMember == null || !boardMember.Roles.Any(r => r.Name == "Editorial Board"))
-            return Result<SeriesResponse>.Failure("FORBIDDEN", "Chỉ thành viên Editorial Board mới có thể bỏ phiếu.", 403);
+        if (boardMember == null || !boardMember.IsActive || !boardMember.Roles.Any(r => r.Name == "Editorial Board"))
+            return Result<SeriesResponse>.Failure("FORBIDDEN", "Chỉ thành viên Editorial Board đang hoạt động mới có thể bỏ phiếu.", 403);
+
+        if (vote != VoteType.Approve && vote != VoteType.Reject)
+            return Result<SeriesResponse>.Failure("INVALID_VOTE", "Phiếu bầu chỉ có thể là Approve hoặc Reject.");
 
         var series = await _uow.Series.GetByIdAsync(seriesId);
         if (series == null)
@@ -180,6 +183,25 @@ public class SeriesService : ISeriesService
 
         if (series.Status != SeriesStatus.Draft)
             return Result<SeriesResponse>.Failure("ALREADY_APPROVED", "Series này đã được phê duyệt hoặc không ở trạng thái chờ duyệt.");
+
+        var existingVotes = await _uow.SeriesVotes.FindAsync(v =>
+            v.SeriesId == seriesId && v.BoardMemberId == boardMemberId);
+        if (existingVotes.Any())
+            return Result<SeriesResponse>.Failure("ALREADY_VOTED", "Bạn đã bỏ phiếu cho Series này rồi.");
+
+        if (vote == VoteType.Approve)
+        {
+            if (proposedTantouId == null || proposedTantouId == Guid.Empty)
+                return Result<SeriesResponse>.Failure("EDITOR_REQUIRED", "Vui lòng chọn Tantou Editor.");
+
+            var proposedTantou = await _uow.Users.GetUserWithRolesAsync(proposedTantouId.Value);
+            if (proposedTantou == null || !proposedTantou.IsActive || !proposedTantou.Roles.Any(r => r.Name == "Tantou Editor"))
+            {
+                return Result<SeriesResponse>.Failure(
+                    "INVALID_EDITOR",
+                    "Tantou Editor được đề xuất không tồn tại hoặc không còn hoạt động.");
+            }
+        }
 
         var newVote = new SeriesVote
         {
@@ -192,25 +214,56 @@ public class SeriesService : ISeriesService
             CreatedAt = DateTime.UtcNow
         };
         await _uow.SeriesVotes.AddAsync(newVote);
-
-        if (vote == VoteType.Approve)
-        {
-            if (proposedTantouId == null) return Result<SeriesResponse>.Failure("EDITOR_REQUIRED", "Vui lòng chọn Tantou Editor.");
-            
-            series.Status = SeriesStatus.Ongoing;
-            series.TantouEditorId = proposedTantouId.Value;
-            series.UpdatedAt = DateTime.UtcNow;
-            _uow.Series.Update(series);
-        }
-        else if (vote == VoteType.Reject)
-        {
-            // Just keep it as Draft so the Mangaka can modify and submit again
-            series.UpdatedAt = DateTime.UtcNow;
-            _uow.Series.Update(series);
-        }
-
         await _uow.SaveChangesAsync();
-        return Result<SeriesResponse>.Success(series.Adapt<SeriesResponse>(), "Đã ghi nhận phiếu bầu và cập nhật trạng thái Series.");
+
+        var activeBoardMembers = (await _uow.Users.FindAsync(u =>
+            u.IsActive && u.Roles.Any(r => r.Name == "Editorial Board"))).ToList();
+        var activeBoardMemberIds = activeBoardMembers.Select(u => u.Id).ToHashSet();
+        var votes = (await _uow.SeriesVotes.FindAsync(v => v.SeriesId == seriesId))
+            .Where(v => activeBoardMemberIds.Contains(v.BoardMemberId))
+            .GroupBy(v => v.BoardMemberId)
+            .Select(g => g.OrderByDescending(v => v.CreatedAt).First())
+            .ToList();
+
+        int requiredVotes = activeBoardMembers.Count / 2 + 1;
+        int approveCount = votes.Count(v => v.VoteType == VoteType.Approve);
+        int rejectCount = votes.Count(v => v.VoteType == VoteType.Reject);
+
+        if (approveCount >= requiredVotes)
+        {
+            var selectedTantouId = votes
+                .Where(v => v.VoteType == VoteType.Approve && v.ProposedTantouId.HasValue)
+                .GroupBy(v => v.ProposedTantouId!.Value)
+                .Select(g => new { TantouId = g.Key, Count = g.Count(), EarliestVote = g.Min(v => v.CreatedAt) })
+                .OrderByDescending(g => g.Count)
+                .ThenBy(g => g.EarliestVote)
+                .Select(g => (Guid?)g.TantouId)
+                .FirstOrDefault();
+
+            if (!selectedTantouId.HasValue)
+                return Result<SeriesResponse>.Failure("EDITOR_REQUIRED", "Không xác định được Tantou Editor từ các phiếu Approve.");
+
+            series.Status = SeriesStatus.Ongoing;
+            series.TantouEditorId = selectedTantouId.Value;
+            series.UpdatedAt = DateTime.UtcNow;
+            _uow.Series.Update(series);
+            await _uow.SaveChangesAsync();
+
+            return Result<SeriesResponse>.Success(
+                series.Adapt<SeriesResponse>(),
+                $"Series đã được duyệt với {approveCount}/{activeBoardMembers.Count} phiếu Approve.");
+        }
+
+        if (rejectCount >= requiredVotes)
+        {
+            return Result<SeriesResponse>.Success(
+                series.Adapt<SeriesResponse>(),
+                $"Series không được duyệt với {rejectCount}/{activeBoardMembers.Count} phiếu Reject.");
+        }
+
+        return Result<SeriesResponse>.Success(
+            series.Adapt<SeriesResponse>(),
+            $"Đã ghi nhận phiếu bầu. Approve: {approveCount}, Reject: {rejectCount}, cần {requiredVotes}/{activeBoardMembers.Count} phiếu để quyết định.");
     }
 
 

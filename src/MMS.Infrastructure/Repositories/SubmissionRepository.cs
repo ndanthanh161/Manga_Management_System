@@ -43,6 +43,7 @@ public class SubmissionRepository : GenericRepository<Submission>, ISubmissionRe
             .Include(s => s.Mangaka)
             .Include(s => s.AssignedTantou)
             .Include(s => s.Manuscripts)
+            .Include(s => s.Votes).ThenInclude(v => v.BoardMember)
             .AsQueryable();
 
         if (role.Equals("Tantou", StringComparison.OrdinalIgnoreCase))
