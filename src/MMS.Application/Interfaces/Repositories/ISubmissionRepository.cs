@@ -7,5 +7,6 @@ public interface ISubmissionRepository : IGenericRepository<Submission>
 {
     Task<IEnumerable<Submission>> GetByMangakaIdAsync(Guid mangakaId);
     Task<Submission?> GetWithDetailsAsync(Guid submissionId);
+    Task<Submission?> GetTrackedWithDetailsAsync(Guid submissionId);
     Task<IEnumerable<Submission>> GetInboxAsync(Guid userId, string role, WorkflowStatus? filter);
 }

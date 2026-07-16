@@ -582,7 +582,7 @@ public class SubmissionService : ISubmissionService
                 return Result<SubmissionResponse>.Failure("INVALID_DECISION", "Quyết định chỉ có thể là Approved, Rejected hoặc Postponed.");
             }
 
-            var submission = await _uow.Submissions.GetWithDetailsAsync(submissionId);
+            var submission = await _uow.Submissions.GetTrackedWithDetailsAsync(submissionId);
             if (submission == null)
             {
                 return Result<SubmissionResponse>.NotFound("SUBMISSION_NOT_FOUND", "Không tìm thấy bản nộp.");
@@ -664,7 +664,6 @@ public class SubmissionService : ISubmissionService
                     }
 
                     series.Status = SeriesStatus.Ongoing;
-                    _uow.Series.Update(series);
 
                     if (!series.AuthorId.HasValue || series.AuthorId.Value == Guid.Empty)
                     {
@@ -682,7 +681,6 @@ public class SubmissionService : ISubmissionService
                 foreach (var ms in submission.Manuscripts)
                 {
                     ms.Status = ManuscriptStatus.Published;
-                    _uow.Manuscripts.Update(ms);
                 }
 
                 foreach (var chapterId in submission.Manuscripts.Select(ms => ms.ChapterId).Distinct())
@@ -691,7 +689,6 @@ public class SubmissionService : ISubmissionService
                     if (chapter != null)
                     {
                         chapter.IsPublished = true;
-                        _uow.Chapters.Update(chapter);
                     }
                 }
             }
@@ -707,7 +704,6 @@ public class SubmissionService : ISubmissionService
                 OccurredAt = DateTime.UtcNow
             };
 
-            _uow.Submissions.Update(submission);
             await _uow.SubmissionTransitions.AddAsync(transition);
             await _uow.SaveChangesAsync();
 

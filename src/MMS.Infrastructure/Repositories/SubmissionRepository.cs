@@ -35,6 +35,19 @@ public class SubmissionRepository : GenericRepository<Submission>, ISubmissionRe
             .FirstOrDefaultAsync(s => s.Id == submissionId);
     }
 
+    public async Task<Submission?> GetTrackedWithDetailsAsync(Guid submissionId)
+    {
+        return await _context.Submissions
+            .AsSplitQuery()
+            .Include(s => s.Series)
+            .Include(s => s.Mangaka)
+            .Include(s => s.AssignedTantou)
+            .Include(s => s.Manuscripts).ThenInclude(m => m.Assets)
+            .Include(s => s.Votes).ThenInclude(v => v.BoardMember)
+            .Include(s => s.Transitions).ThenInclude(t => t.ActorUser)
+            .FirstOrDefaultAsync(s => s.Id == submissionId);
+    }
+
     public async Task<IEnumerable<Submission>> GetInboxAsync(Guid userId, string role, WorkflowStatus? filter)
     {
         var query = _context.Submissions
